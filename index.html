@@ -1,0 +1,63 @@
+<html>
+<head>
+  <title>Ocean Waves</title>
+  <meta http-equiv="content-type" content="text/html">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+</body>
+
+<script type="text/javascript" src="parameters.js"></script>
+<script type="text/javascript" src="webgl-boilerplate.js"></script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec2 a_position;
+    varying vec2 v_position;
+    void main(void) {
+        v_position = a_position;
+        gl_Position = vec4(a_position, 0, 1);
+    }
+</script>
+
+<script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    varying vec2 v_position;
+    void main(void) {
+        gl_FragColor = vec4((v_position + 1.0) / 2.0, 0, 1);
+    }
+</script>
+
+<script>
+    var VERTEX_SOURCE = document.getElementById("shader-vs").text;
+    var FRAGMENT_SOURCE = document.getElementById("shader-fs").text;
+    
+    var canvas = document.getElementById("canvas");
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+
+    var gl = canvas.getContext("experimental-webgl");
+
+    var programData = buildProgramData(gl, buildVertexShader(gl, VERTEX_SOURCE), buildFragmentShader(gl, FRAGMENT_SOURCE), { 
+        "a_position": A_POSITION_INDEX });
+
+    gl.useProgram(programData.program);
+
+    var buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+            -1.0, -1.0,
+             1.0, -1.0,
+            -1.0,  1.0,
+            -1.0,  1.0,
+             1.0, -1.0,
+             1.0,  1.0]),
+        gl.STATIC_DRAW);
+    
+    
+    gl.enableVertexAttribArray(programData.attribLocations["a_position"]);
+    gl.vertexAttribPointer(programData.attribLocations["a_position"], 2, gl.FLOAT, false, 0, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+</script>
