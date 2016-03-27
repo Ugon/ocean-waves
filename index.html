@@ -10,37 +10,69 @@
 <script type="text/javascript" src="parameters.js"></script>
 <script type="text/javascript" src="webgl-boilerplate.js"></script>
 
-<script id="shader-vs" type="x-shader/x-vertex">
+<script id="pass-position-vertex-shader" type="x-shader/x-vertex">
+    precision highp float;
+    
     attribute vec2 a_position;
+
     varying vec2 v_position;
+    
     void main(void) {
         v_position = a_position;
         gl_Position = vec4(a_position, 0, 1);
     }
 </script>
 
-<script id="shader-fs" type="x-shader/x-fragment">
-    precision mediump float;
+<script id="init-height-in-frequency-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
     varying vec2 v_position;
+
+    uniform sampler2D u_randomPairs;
+
     void main(void) {
-        gl_FragColor = vec4((v_position + 1.0) / 2.0, 0, 1);
+        vec4 randomPair = texture2D(u_randomPairs, v_position);
+        gl_FragColor = vec4(randomPair.xyz, 1);
     }
 </script>
 
 <script>
-    var VERTEX_SOURCE = document.getElementById("shader-vs").text;
-    var FRAGMENT_SOURCE = document.getElementById("shader-fs").text;
-    
-    var canvas = document.getElementById("canvas");
+    var canvas = document.getElementById('canvas');
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
 
-    var gl = canvas.getContext("experimental-webgl");
+    var gl = canvas.getContext('experimental-webgl');
+    gl.getExtension('OES_texture_float');
 
-    var programData = buildProgramData(gl, buildVertexShader(gl, VERTEX_SOURCE), buildFragmentShader(gl, FRAGMENT_SOURCE), { 
-        "a_position": A_POSITION_INDEX });
+
+    /*****************************************************************/
+    /**************************BUILD SHADERS**************************/
+    /*****************************************************************/
+    var passPositionVertexShaderSource = document.getElementById('pass-position-vertex-shader').text;
+    var passPositionVertexShader = buildVertexShader(gl, passPositionVertexShaderSource);
+    
+    var initHeightInFrequencyFragmentShaderSource = document.getElementById('init-height-in-frequency-fragment-shader').text;
+    var initHeightInFrequencyFragmentShader = buildFragmentShader(gl, initHeightInFrequencyFragmentShaderSource);
+    
+
+    /*****************************************************************/
+    /********************INIT HEIGHT IN FREQUENCY*********************/
+    /*****************************************************************/
+    var randomNormalPairs = [];
+    for (var i = 0; i < HEIGHT * WIDTH; i++){
+        randomNormalPairs.push(randomNormal());
+        randomNormalPairs.push(randomNormal());
+        randomNormalPairs.push(0);
+        randomNormalPairs.push(0);
+    }
+
+    var randomNormalPairsTexture = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_NORMAL_PAIR, WIDTH, HEIGHT, new Float32Array(randomNormalPairs));
+
+    var programData = buildProgramData(gl, passPositionVertexShader, initHeightInFrequencyFragmentShader, 
+        { 'a_position': A_POSITION_INDEX });
 
     gl.useProgram(programData.program);
+    gl.uniform1i(programData.uniformLocations['u_randomPairs'], 0);
 
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -56,8 +88,8 @@
         gl.STATIC_DRAW);
     
     
-    gl.enableVertexAttribArray(programData.attribLocations["a_position"]);
-    gl.vertexAttribPointer(programData.attribLocations["a_position"], 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(programData.attribLocations['a_position']);
+    gl.vertexAttribPointer(programData.attribLocations['a_position'], 2, gl.FLOAT, false, 0, 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 </script>
