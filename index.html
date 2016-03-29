@@ -23,12 +23,12 @@
     }
 </script>
 
-<script id="init-height-in-frequency-fragment-shader" type="x-shader/x-fragment">
+<script id="height-init-in-frequency-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
     varying vec2 v_position; //[-1, 1]
 
-    uniform sampler2D u_randomPairs;
+    uniform sampler2D u_randomComplexNumbers;
     uniform vec2 u_windVector;
     uniform vec2 u_transformSize; //(WIDTH, HEIGHT)
     uniform vec2 u_areaSize;      //size of rendered area (eg. 100km x 100km)
@@ -53,10 +53,65 @@
         float V = length(u_windVector);
         float L = V * V / g;
 
-        float Ph = pow(e, (-1.0 / square(klen * L))) * square(dot(normalize(k), normalize(u_windVector))) / (klen * klen * klen * klen);
+        float Ph = pow(e, (-1.0 / square(klen * L))) * square(dot(normalize(k), normalize(u_windVector))) / square(klen * klen);
+        float sqrtPh = sqrt(Ph * 0.5);
 
-        vec4 randomPair = texture2D(u_randomPairs, v_position);
-        gl_FragColor = vec4(Ph, 0, 0, 1);
+        vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, v_position).xy;
+        vec2 h0 = randomComplexNumber * sqrtPh;
+
+        gl_FragColor = vec4(h0, 0, 1);
+    }
+</script>
+
+<script id="height-after-t-in-frequency-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 v_position; //[-1, 1]
+
+    uniform sampler2D u_h0;
+    uniform vec2 u_transformSize; //(WIDTH, HEIGHT)
+    uniform vec2 u_areaSize;      //size of rendered area (eg. 100km x 100km)
+    uniform float u_t;
+
+    float PI = 3.14159265359;
+    float e =  2.71828182846;
+    float g =  9.81;
+
+    float square(float a){
+        return a * a;
+    }
+
+    float omega(float klen){
+        return sqrt(g * klen);
+    }
+
+    vec2 complexTryg(float alpha){
+        return vec2(cos(alpha), sin(alpha));
+    }
+
+    vec2 complexMult(vec2 a, vec2 b){
+        return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y + b.x);
+    }
+
+    vec2 complexConj(vec2 a){
+        return vec2(a.x, -a.y);
+    }
+
+    void main(void) {
+        float n2 = v_position.x * u_transformSize.x; //2 * n
+        float m2 = v_position.y * u_transformSize.y; //2 * m
+
+        float kx = PI * n2 / u_areaSize.x;
+        float ky = PI * m2 / u_areaSize.y;
+        vec2 k = vec2(kx, ky);
+        float klen = length(k);
+
+        vec2 h0k = texture2D(u_h0, v_position).xy;
+        vec2 h0minusk = texture2D(u_h0, -v_position).xy;
+
+        vec2 hkt = complexMult(h0k, complexTryg(omega(klen) * u_t)) + complexMult(complexConj(h0minusk), complexTryg(-omega(klen) * u_t));
+
+        gl_FragColor = vec4(hkt, 0, 1);
     }
 </script>
 
@@ -75,12 +130,15 @@
     var passPositionVertexShaderSource = document.getElementById('pass-position-vertex-shader').text;
     var passPositionVertexShader = buildVertexShader(gl, passPositionVertexShaderSource);
     
-    var initHeightInFrequencyFragmentShaderSource = document.getElementById('init-height-in-frequency-fragment-shader').text;
-    var initHeightInFrequencyFragmentShader = buildFragmentShader(gl, initHeightInFrequencyFragmentShaderSource);
+    var heightInitInFrequencyFragmentShaderSource = document.getElementById('height-init-in-frequency-fragment-shader').text;
+    var heightInitInFrequencyFragmentShader = buildFragmentShader(gl, heightInitInFrequencyFragmentShaderSource);
+
+    var heightAfterTInFrequencyFragmentShaderSource = document.getElementById('height-after-t-in-frequency-fragment-shader').text;
+    var heightAfterTInFrequencyFragmentShader = buildFragmentShader(gl, heightAfterTInFrequencyFragmentShaderSource);
     
 
     /*****************************************************************/
-    /********************INIT HEIGHT IN FREQUENCY*********************/
+    /*************************INIT TEXTURES***************************/
     /*****************************************************************/
     var randomNormalPairs = [];
     for (var i = 0; i < HEIGHT * WIDTH; i++){
@@ -90,33 +148,72 @@
         randomNormalPairs.push(0);
     }
 
-    var randomNormalPairsTexture = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_NORMAL_PAIR, WIDTH, HEIGHT, new Float32Array(randomNormalPairs));
+    var randomNormalPairsTexture     = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_NORMAL_PAIRS,      WIDTH, HEIGHT, new Float32Array(randomNormalPairs));
+    var initHeightInFrequencyTexture = buildDataTexture(gl, UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY, WIDTH, HEIGHT, null);
 
-    var programData = buildProgramData(gl, passPositionVertexShader, initHeightInFrequencyFragmentShader, 
+
+
+    /*****************************************************************/
+    /***********************INIT FRAMEBUFFERS*************************/
+    /*****************************************************************/
+    var initHeightInFrequencyFramebuffer = buildFramebuffer(gl, initHeightInFrequencyTexture);
+
+
+    /*****************************************************************/
+    /***********************BUILD PROGRAMS****************************/
+    /*****************************************************************/
+    var initHeightInFrequencyProgram = buildProgramData(gl, passPositionVertexShader, heightInitInFrequencyFragmentShader, 
         { 'a_position': A_POSITION_INDEX });
+    gl.useProgram(initHeightInFrequencyProgram.program);
+    gl.uniform1i(initHeightInFrequencyProgram.uniformLocations['u_randomComplexNumbers'], UNIT_TEXTURE_RANDOM_NORMAL_PAIRS);
+    gl.uniform2f(initHeightInFrequencyProgram.uniformLocations['u_windVector'], WIND_X, WIND_Y);
+    gl.uniform2f(initHeightInFrequencyProgram.uniformLocations['u_transformSize'], HEIGHT, WIDTH);
+    gl.uniform2f(initHeightInFrequencyProgram.uniformLocations['u_areaSize'], X_SIZE, Y_SIZE);
 
-    gl.useProgram(programData.program);
-    gl.uniform1i(programData.uniformLocations['u_randomPairs'], UNIT_TEXTURE_RANDOM_NORMAL_PAIR);
-    gl.uniform2f(programData.uniformLocations['u_windVector'], WIND_X, WIND_Y);
-    gl.uniform2f(programData.uniformLocations['u_transformSize'], HEIGHT, WIDTH);
-    gl.uniform2f(programData.uniformLocations['u_areaSize'], X_SIZE, Y_SIZE);
+    var heightAfterTInFrequencyProgram = buildProgramData(gl, passPositionVertexShader, heightAfterTInFrequencyFragmentShader, 
+        { 'a_position': A_POSITION_INDEX });
+    gl.useProgram(heightAfterTInFrequencyProgram.program);
+    gl.uniform1i(heightAfterTInFrequencyProgram.uniformLocations['u_h0'], UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY);
+    gl.uniform2f(heightAfterTInFrequencyProgram.uniformLocations['u_transformSize'], HEIGHT, WIDTH);
+    gl.uniform2f(heightAfterTInFrequencyProgram.uniformLocations['u_areaSize'], X_SIZE, Y_SIZE);
+    gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], 1.0);
 
-    var buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array([
-            -1.0, -1.0,
-             1.0, -1.0,
-            -1.0,  1.0,
-            -1.0,  1.0,
-             1.0, -1.0,
-             1.0,  1.0]),
-        gl.STATIC_DRAW);
-    
-    
-    gl.enableVertexAttribArray(programData.attribLocations['a_position']);
-    gl.vertexAttribPointer(programData.attribLocations['a_position'], 2, gl.FLOAT, false, 0, 0);
+    /*****************************************************************/
+    /****************RENDER INIT HEIGHT IN FREQUENCY******************/
+    /*****************************************************************/
 
+    gl.enableVertexAttribArray(A_POSITION_INDEX);
+
+    var fullscreenVertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, fullscreenVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]), gl.STATIC_DRAW); 
+  
+
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, fullscreenVertexBuffer);
+    gl.vertexAttribPointer(A_POSITION_INDEX, 2, gl.FLOAT, false, 0, 0);
+
+
+
+    gl.useProgram(initHeightInFrequencyProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, initHeightInFrequencyFramebuffer);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+
+    gl.useProgram(heightAfterTInFrequencyProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+    var time = 0.0;
+
+    var nextFrame = function(){
+        time += 0.1;
+        gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], time);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        setTimeout(nextFrame, 10);
+    }
+
+    nextFrame();
 </script>

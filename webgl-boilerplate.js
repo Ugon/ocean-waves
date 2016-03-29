@@ -63,3 +63,10 @@ var buildTexture = function(gl, unit, target, level, internalformat, width, heig
 var buildDataTexture = function(gl, unit, width, height, pixels){
 	return buildTexture(gl, unit, gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, pixels, gl.REPEAT, gl.REPEAT, gl.NEAREST, gl.NEAREST);
 }
+
+var buildFramebuffer = function(gl, texture){
+	var framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    return framebuffer;
+}
