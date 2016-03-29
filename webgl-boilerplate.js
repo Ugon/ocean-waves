@@ -39,7 +39,7 @@ var buildProgramData = function(gl, vertexShader, fragmentShader, attribLocation
 	for (var i = 0; i < numOfUniforms; i++) {
 		var activeUniform = gl.getActiveUniform(program, i);
 		var uniformLocation = gl.getUniformLocation(program, activeUniform.name);
-		uniformLocations[uniformLocation.name] = uniformLocation;
+		uniformLocations[activeUniform.name] = uniformLocation;
 	}
 
 	programData.program = program;

@@ -1,10 +1,10 @@
 <html>
 <head>
-  <title>Ocean Waves</title>
-  <meta http-equiv="content-type" content="text/html">
+    <title>Ocean Waves</title>
+    <meta http-equiv="content-type" content="text/html">
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+    <canvas id="canvas"></canvas>
 </body>
 
 <script type="text/javascript" src="parameters.js"></script>
@@ -26,13 +26,37 @@
 <script id="init-height-in-frequency-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 v_position;
+    varying vec2 v_position; //[-1, 1]
 
     uniform sampler2D u_randomPairs;
+    uniform vec2 u_windVector;
+    uniform vec2 u_transformSize; //(WIDTH, HEIGHT)
+    uniform vec2 u_areaSize;      //size of rendered area (eg. 100km x 100km)
+
+    float PI = 3.14159265359;
+    float e =  2.71828182846;
+    float g =  9.81;
+
+    float square(float a){
+        return a * a;
+    }
 
     void main(void) {
+        float n2 = v_position.x * u_transformSize.x; //2 * n
+        float m2 = v_position.y * u_transformSize.y; //2 * m
+
+        float kx = PI * n2 / u_areaSize.x;
+        float ky = PI * m2 / u_areaSize.y;
+        vec2 k = vec2(kx, ky);
+        float klen = length(k);
+
+        float V = length(u_windVector);
+        float L = V * V / g;
+
+        float Ph = pow(e, (-1.0 / square(klen * L))) * square(dot(normalize(k), normalize(u_windVector))) / (klen * klen * klen * klen);
+
         vec4 randomPair = texture2D(u_randomPairs, v_position);
-        gl_FragColor = vec4(randomPair.xyz, 1);
+        gl_FragColor = vec4(Ph, 0, 0, 1);
     }
 </script>
 
@@ -72,7 +96,10 @@
         { 'a_position': A_POSITION_INDEX });
 
     gl.useProgram(programData.program);
-    gl.uniform1i(programData.uniformLocations['u_randomPairs'], 0);
+    gl.uniform1i(programData.uniformLocations['u_randomPairs'], UNIT_TEXTURE_RANDOM_NORMAL_PAIR);
+    gl.uniform2f(programData.uniformLocations['u_windVector'], WIND_X, WIND_Y);
+    gl.uniform2f(programData.uniformLocations['u_transformSize'], HEIGHT, WIDTH);
+    gl.uniform2f(programData.uniformLocations['u_areaSize'], X_SIZE, Y_SIZE);
 
     var buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
