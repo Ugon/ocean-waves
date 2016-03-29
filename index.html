@@ -115,6 +115,64 @@
     }
 </script>
 
+<script id="ifft-rows-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 v_position; //[-1, 1]
+
+    uniform sampler2D u_input;
+    uniform float u_transformSize; //(WIDTH, HEIGHT)
+    uniform float u_subtransformSize; //(WIDTH, HEIGHT)
+
+    float PI = 3.14159265359;
+
+    vec2 complexTryg(float alpha){
+        return vec2(cos(alpha), sin(alpha));
+    }
+
+    vec2 complexMult(vec2 a, vec2 b){
+        return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y + b.x);
+    }
+
+    float position2Index(float pos){
+        return u_transformSize * (pos * 0.5 + 0.5);
+    }
+
+    float index2TexturePosition(float ind){
+        return ind / u_transformSize;
+    }
+
+    float position2TexturePosition(float pos){
+        return pos * 0.5 + 0.5;
+    }
+
+    void main(void) {
+        float index_x = position2Index(v_position.x); //[0, u_transformSize]
+        float base = floor(index_x / u_subtransformSize) * u_subtransformSize * 2.0;
+        float offset = mod(index_x, u_subtransformSize * 0.5);
+        float x0 = base + offset;
+        float x1 = x0 + u_transformSize * 0.5;
+        vec2 val0 = texture2D(u_input, vec2(index2TexturePosition(x0), position2TexturePosition(v_position.y))).xy;
+        vec2 val1 = texture2D(u_input, vec2(index2TexturePosition(x1), position2TexturePosition(v_position.y))).xy;
+        vec2 twiddle = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
+        vec2 result = vec2(val0.x + twiddle.x * val1.x - twiddle.y * val1.y, 
+                           val0.y + twiddle.y * val1.x + twiddle.x * val1.y);
+        // gl_FragColor = vec4(texture2D(u_input, vec2(index_x / u_transformSize, v_position.y) * 0.5 + 0.5).xy, 0, 1);
+        // gl_FragColor = texture2D(u_input, val0);
+        // gl_FragColor = vec4(1, 1, 0, 1);
+        // gl_FragColor = vec4(index2TexturePosition(x0), 0, 0, 1);
+        gl_FragColor = vec4(result, 0, 1);
+    }
+</script>
+
+
+
+
+
+
+
+
+
 <script>
     var canvas = document.getElementById('canvas');
     canvas.width = WIDTH;
@@ -135,6 +193,9 @@
 
     var heightAfterTInFrequencyFragmentShaderSource = document.getElementById('height-after-t-in-frequency-fragment-shader').text;
     var heightAfterTInFrequencyFragmentShader = buildFragmentShader(gl, heightAfterTInFrequencyFragmentShaderSource);
+
+    var ifftRowsFragmentShaderSource = document.getElementById('ifft-rows-fragment-shader').text;
+    var ifftRowsFragmentShader = buildFragmentShader(gl, ifftRowsFragmentShaderSource);
     
 
     /*****************************************************************/
@@ -150,6 +211,8 @@
 
     var randomNormalPairsTexture     = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_NORMAL_PAIRS,      WIDTH, HEIGHT, new Float32Array(randomNormalPairs));
     var initHeightInFrequencyTexture = buildDataTexture(gl, UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY, WIDTH, HEIGHT, null);
+    var pingTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PING, WIDTH, HEIGHT, null);
+    var pongTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PONG, WIDTH, HEIGHT, null);
 
 
 
@@ -157,7 +220,15 @@
     /***********************INIT FRAMEBUFFERS*************************/
     /*****************************************************************/
     var initHeightInFrequencyFramebuffer = buildFramebuffer(gl, initHeightInFrequencyTexture);
+    var pingFramebuffer = buildFramebuffer(gl, pingTexture);
+    var pongFramebuffer = buildFramebuffer(gl, pongTexture);
 
+
+    var isPingCurrent = true;
+    var changePingPong = function() { isPingCurrent = !isPingCurrent; }
+    var getCurrentPingPongTexture = function() { return isPingCurrent ? pingTexture : pongTexture; }
+    var getCurrentPingPongFramebuffer = function() { return isPingCurrent ? pingFramebuffer : pongFramebuffer; }
+    var getCurrentPingPongTextureUnit = function() { return isPingCurrent ? UNIT_TEXTURE_PING : UNIT_TEXTURE_PONG; }
 
     /*****************************************************************/
     /***********************BUILD PROGRAMS****************************/
@@ -177,6 +248,14 @@
     gl.uniform2f(heightAfterTInFrequencyProgram.uniformLocations['u_transformSize'], HEIGHT, WIDTH);
     gl.uniform2f(heightAfterTInFrequencyProgram.uniformLocations['u_areaSize'], X_SIZE, Y_SIZE);
     gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], 1.0);
+
+    var ifftRowsProgram = buildProgramData(gl, passPositionVertexShader, ifftRowsFragmentShader, 
+        { 'a_position': A_POSITION_INDEX });
+    gl.useProgram(ifftRowsProgram.program);
+    gl.uniform1i(ifftRowsProgram.uniformLocations['u_input'], UNIT_TEXTURE_PING);
+    gl.uniform1f(ifftRowsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
+    gl.uniform1f(ifftRowsProgram.uniformLocations['u_subtransformSize'], TRANSFORM_SIZE);
+
 
     /*****************************************************************/
     /****************RENDER INIT HEIGHT IN FREQUENCY******************/
@@ -201,17 +280,26 @@
 
 
 
-    gl.useProgram(heightAfterTInFrequencyProgram.program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+
+
 
 
     var time = 0.0;
 
     var nextFrame = function(){
         time += 0.1;
+
+        gl.useProgram(heightAfterTInFrequencyProgram.program);
         gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], time);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, pingFramebuffer);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.useProgram(ifftRowsProgram.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
         setTimeout(nextFrame, 10);
     }
 
