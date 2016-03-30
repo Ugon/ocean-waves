@@ -26,38 +26,39 @@
 <script id="height-init-in-frequency-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 v_position; //[-1, 1]
-
     uniform sampler2D u_randomComplexNumbers;
-    uniform vec2 u_windVector;
-    uniform float u_transformSize; //(WIDTH, HEIGHT)
-    uniform float u_areaSize;      //size of rendered area (eg. 100km x 100km)
+    uniform vec2      u_windVector;
+    uniform float     u_transformSize;
+    uniform float     u_areaSize;
 
     float PI = 3.14159265359;
-    float e =  2.71828182846;
-    float g =  9.81;
+    float e  = 2.71828182846;
+    float g  = 9.81;
 
     float square(float a){
         return a * a;
     }
 
-    void main(void) {
-        float n2 = v_position.x * u_transformSize; //2 * n
-        float m2 = v_position.y * u_transformSize; //2 * m
+    vec2 index2TexturePosition(vec2 ind){
+        return ind / u_transformSize;
+    }
 
-        float kx = PI * n2 / u_areaSize;
-        float ky = PI * m2 / u_areaSize;
-        vec2 k = vec2(kx, ky);
+    void main(void) {
+        vec2 index_xy = gl_FragCoord.xy;                                          //[0, u_transformSize)
+        vec2 nm       = index_xy - vec2(u_transformSize, u_transformSize) * 0.5;  //[-u_transformSize/2, u_transformSize/2)
+        vec2 k        = 2.0 * nm * PI / u_areaSize;
         float klen = length(k);
 
         float V = length(u_windVector);
         float L = V * V / g;
 
-        // float Ph = pow(e, (-1.0 / square(klen * L))) * square(dot(normalize(k), normalize(u_windVector))) / square(klen * klen);
-        float Ph = pow(e, (-1.0 / square(klen * L))) * square(dot(normalize(k), normalize(u_windVector))) / square(klen * klen) * pow(e, -square(klen * u_areaSize / 1000.0));
+        //Phillips spectrum
+        float Ph = pow(e, (-1.0 / square(klen * L))) / square(klen * klen) 
+                 * square(dot(normalize(k), normalize(u_windVector)))      //direction factor
+                 * pow(e, -square(klen * u_areaSize / 1000.0));            //remove small waves
         float sqrtPh = sqrt(Ph * 0.5);
 
-        vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, v_position).xy;
+        vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, index2TexturePosition(index_xy)).xy;
         vec2 h0 = randomComplexNumber * sqrtPh;
 
         gl_FragColor = vec4(h0, 0, 1);
@@ -67,75 +68,52 @@
 <script id="height-after-t-in-frequency-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 v_position; //[-1, 1]
-
     uniform sampler2D u_h0;
-    uniform float u_transformSize; //(WIDTH, HEIGHT)
-    uniform float u_areaSize;      //size of rendered area (eg. 100km x 100km)
-    uniform float u_t;
+    uniform float     u_transformSize; 
+    uniform float     u_areaSize;
+    uniform float     u_t;
 
     float PI = 3.14159265359;
-    float e =  2.71828182846;
-    float g =  9.81;
-
-    float square(float a){
-        return a * a;
-    }
+    float g  = 9.81;
 
     float omega(float klen){
         return sqrt(g * klen);
     }
-
-    vec2 complexTryg(float alpha){
-        return vec2(cos(alpha), sin(alpha));
+    
+    vec2 index2TexturePosition(vec2 ind){
+        return ind / u_transformSize;
     }
 
-    vec2 complexMult(vec2 a, vec2 b){
-        return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y + b.x);
-    }
-
-    vec2 complexConj(vec2 a){
-        return vec2(a.x, -a.y);
-    }
-
-    vec2 position2TexturePosition(vec2 pos){
-        return pos * 0.5 + vec2(0.5, 0.5);
+    vec2 minusIndex(vec2 ind){
+        return vec2(u_transformSize - 1.0, u_transformSize - 1.0) - ind;
     }
 
     void main(void) {
-        float n2 = v_position.x * u_transformSize; //2 * n
-        float m2 = v_position.y * u_transformSize; //2 * m
+        vec2 index_xy = gl_FragCoord.xy;                                          //[0, u_transformSize)
+        vec2 nm       = index_xy - vec2(u_transformSize, u_transformSize) * 0.5;  //[-u_transformSize/2, u_transformSize/2)
+        vec2 k        = 2.0 * nm * PI / u_areaSize;
 
-        float kx = PI * n2 / u_areaSize;
-        float ky = PI * m2 / u_areaSize;
-        vec2 k = vec2(kx, ky);
-        float klen = length(k);
+        vec2 h0k      = texture2D(u_h0, index2TexturePosition(           index_xy )).xy;
+        vec2 h0minusk = texture2D(u_h0, index2TexturePosition(minusIndex(index_xy))).xy;
+       
+        float wt = omega(length(k)) * u_t;
+        float coswt = cos(wt);
+        float sinwt = sin(wt);
 
-        vec2 h0k = texture2D(u_h0, position2TexturePosition(v_position)).xy;
-        vec2 h0minusk = texture2D(u_h0, position2TexturePosition(-v_position)).xy;
+        vec2 hkt;
+        hkt.x = h0k.x * coswt - h0k.y * sinwt + h0minusk.x * coswt - h0minusk.y * sinwt;
+        hkt.y = h0k.x * sinwt + h0k.y * coswt - h0minusk.x * sinwt + h0minusk.y * coswt;
 
-        //nie dziala
-        // vec2 hkt1 = complexMult(h0k, complexTryg(omega(klen) * u_t)) + complexMult(complexConj(h0minusk), complexTryg(-omega(klen) * u_t));
-        
-        //dziala
-        float wt = omega(klen) * u_t;
-        vec2 hkt;// = complexMult(h0k, complexTryg(omega(klen) * u_t)) + complexMult(complexConj(h0minusk), complexTryg(-omega(klen) * u_t));
-        hkt.x = h0k.x * cos(wt) - h0k.y * sin(wt) + h0minusk.x * cos(wt) - (-h0minusk.y) * (-sin(wt));
-        hkt.y = h0k.x * sin(wt) + h0k.y * cos(wt) + h0minusk.x * (-sin(wt)) + (-h0minusk.y) * (-cos(wt));
-
-        // gl_FragColor = vec4(hkt, 0, 1);
         gl_FragColor = vec4(hkt, 0, 1);
     }
 </script>
 
-<script id="ifft-rows-fragment-shader" type="x-shader/x-fragment">
+<script id="fft-rows-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 v_position; //[-1, 1]
-
     uniform sampler2D u_input;
-    uniform float u_transformSize; //(WIDTH, HEIGHT)
-    uniform float u_subtransformSize; //(WIDTH, HEIGHT)
+    uniform float u_transformSize;
+    uniform float u_subtransformSize;
 
     float PI = 3.14159265359;
 
@@ -143,38 +121,34 @@
         return vec2(cos(alpha), sin(alpha));
     }
 
-    vec2 complexMult(vec2 a, vec2 b){
-        return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y + b.x);
-    }
-
-    float index2TexturePosition(float ind){
+    vec2 index2TexturePosition(vec2 ind){
         return ind / u_transformSize;
     }
 
     void main(void) {
-        float index_x = gl_FragCoord.x - 0.5; //[0, u_transformSize]
-        float index_y = gl_FragCoord.y - 0.5;
-        float base = floor(index_x / u_subtransformSize) * u_subtransformSize * 0.5;
-        float offset = mod(index_x, u_subtransformSize * 0.5);
-        float x0 = base + offset;
-        float x1 = x0 + u_transformSize * 0.5;
-        vec2 val0 = texture2D(u_input, vec2(index2TexturePosition(x0), index2TexturePosition(index_y))).xy;
-        vec2 val1 = texture2D(u_input, vec2(index2TexturePosition(x1), index2TexturePosition(index_y))).xy;
-        vec2 twiddle = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
-        vec2 result = vec2(val0.x + twiddle.x * val1.x - twiddle.y * val1.y, 
-                           val0.y + twiddle.y * val1.x + twiddle.x * val1.y);
+        float index_x = gl_FragCoord.x; //[0, u_transformSize)
+        float index_y = gl_FragCoord.y; //[0, u_transformSize)
+        float base    = floor(index_x / u_subtransformSize) * u_subtransformSize * 0.5;
+        float offset  = mod(index_x, u_subtransformSize * 0.5);
+        float x0      = base + offset;
+        float x1      = x0 + u_transformSize * 0.5;
+
+        vec2 val0     = texture2D(u_input, index2TexturePosition(vec2(x0, index_y))).xy;
+        vec2 val1     = texture2D(u_input, index2TexturePosition(vec2(x1, index_y))).xy;
+        vec2 twiddle  = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
+        vec2 result   = vec2(val0.x + twiddle.x * val1.x - twiddle.y * val1.y,
+                             val0.y + twiddle.y * val1.x + twiddle.x * val1.y);
+
         gl_FragColor = vec4(result, 0, 1);
     }
 </script>
 
-<script id="ifft-cols-fragment-shader" type="x-shader/x-fragment">
+<script id="fft-cols-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
-    varying vec2 v_position; //[-1, 1]
-
     uniform sampler2D u_input;
-    uniform float u_transformSize; //(WIDTH, HEIGHT)
-    uniform float u_subtransformSize; //(WIDTH, HEIGHT)
+    uniform float u_transformSize;
+    uniform float u_subtransformSize;
 
     float PI = 3.14159265359;
 
@@ -182,26 +156,24 @@
         return vec2(cos(alpha), sin(alpha));
     }
 
-    vec2 complexMult(vec2 a, vec2 b){
-        return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y + b.x);
-    }
-
     float index2TexturePosition(float ind){
         return ind / u_transformSize;
     }
 
     void main(void) {
-        float index_x = gl_FragCoord.x - 0.5; //[0, u_transformSize]
-        float index_y = gl_FragCoord.y - 0.5;
-        float base = floor(index_y / u_subtransformSize) * u_subtransformSize * 0.5;
-        float offset = mod(index_y, u_subtransformSize * 0.5);
-        float y0 = base + offset;
-        float y1 = y0 + u_transformSize * 0.5;
-        vec2 val0 = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y0))).xy;
-        vec2 val1 = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y1))).xy;
-        vec2 twiddle = complexTryg((-2.0) * PI * (index_y / u_subtransformSize));
-        vec2 result = vec2(val0.x + twiddle.x * val1.x - twiddle.y * val1.y, 
-                           val0.y + twiddle.y * val1.x + twiddle.x * val1.y);
+        float index_x = gl_FragCoord.x; //[0, u_transformSize)
+        float index_y = gl_FragCoord.y; //[0, u_transformSize)
+        float base    = floor(index_y / u_subtransformSize) * u_subtransformSize * 0.5;
+        float offset  = mod(index_y, u_subtransformSize * 0.5);
+        float y0      = base + offset;
+        float y1      = y0 + u_transformSize * 0.5;
+
+        vec2 val0     = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y0))).xy;
+        vec2 val1     = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y1))).xy;
+        vec2 twiddle  = complexTryg((-2.0) * PI * (index_y / u_subtransformSize));
+        vec2 result   = vec2(val0.x + twiddle.x * val1.x - twiddle.y * val1.y, 
+                             val0.y + twiddle.y * val1.x + twiddle.x * val1.y);
+        
         gl_FragColor = vec4(result, 0, 1);
     }
 </script>
@@ -219,36 +191,20 @@
 
     void main(void) {
         vec4 val = texture2D(u_input, vec2(position2TexturePosition(v_position.x), position2TexturePosition(v_position.y)));
-        // gl_FragColor = vec4(val.xy / 100., 0, 1);
-        float v = val.x / 100.;
+        float v = val.x / 500000.;
         gl_FragColor = vec4(v, v, v, 1);
     }
 </script>
 
-<script id="conjugate-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
 
-    varying vec2 v_position; //[-1, 1]
-
-    uniform sampler2D u_input;
-
-    float position2TexturePosition(float pos){
-        return pos * 0.5 + 0.5;
-    }
-
-    void main(void) {
-        vec4 val = texture2D(u_input, vec2(position2TexturePosition(v_position.x), position2TexturePosition(v_position.y)));
-        gl_FragColor = vec4(val.x, -val.y, 0, 1);
-    }
-</script>
 
 
 
 
 <script>
     var canvas = document.getElementById('canvas');
-    canvas.width = WIDTH;
-    canvas.height = HEIGHT;
+    canvas.width = TRANSFORM_SIZE;
+    canvas.height = TRANSFORM_SIZE;
 
     var gl = canvas.getContext('experimental-webgl');
     gl.getExtension('OES_texture_float');
@@ -266,34 +222,33 @@
     var heightAfterTInFrequencyFragmentShaderSource = document.getElementById('height-after-t-in-frequency-fragment-shader').text;
     var heightAfterTInFrequencyFragmentShader = buildFragmentShader(gl, heightAfterTInFrequencyFragmentShaderSource);
 
-    var ifftRowsFragmentShaderSource = document.getElementById('ifft-rows-fragment-shader').text;
-    var ifftRowsFragmentShader = buildFragmentShader(gl, ifftRowsFragmentShaderSource);
+    var fftRowsFragmentShaderSource = document.getElementById('fft-rows-fragment-shader').text;
+    var fftRowsFragmentShader = buildFragmentShader(gl, fftRowsFragmentShaderSource);
     
-    var ifftColsFragmentShaderSource = document.getElementById('ifft-cols-fragment-shader').text;
-    var ifftColsFragmentShader = buildFragmentShader(gl, ifftColsFragmentShaderSource);
+    var fftColsFragmentShaderSource = document.getElementById('fft-cols-fragment-shader').text;
+    var fftColsFragmentShader = buildFragmentShader(gl, fftColsFragmentShaderSource);
     
     var displayHeightShaderSource = document.getElementById('display-height-fragment-shader').text;
     var displayHeightShader = buildFragmentShader(gl, displayHeightShaderSource);
 
-    var conjugateShaderSource = document.getElementById('conjugate-fragment-shader').text;
-    var conjugateShader = buildFragmentShader(gl, conjugateShaderSource);
-
+    
 
     /*****************************************************************/
     /*************************INIT TEXTURES***************************/
     /*****************************************************************/
     var randomNormalPairs = [];
-    for (var i = 0; i < HEIGHT * WIDTH; i++){
+    for (var i = 0; i < TRANSFORM_SIZE * TRANSFORM_SIZE; i++){
         randomNormalPairs.push(randomNormal());
         randomNormalPairs.push(randomNormal());
         randomNormalPairs.push(0);
         randomNormalPairs.push(0);
     }
 
-    var randomNormalPairsTexture     = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_NORMAL_PAIRS,      WIDTH, HEIGHT, new Float32Array(randomNormalPairs));
-    var initHeightInFrequencyTexture = buildDataTexture(gl, UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY, WIDTH, HEIGHT, null);
-    var pingTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PING, WIDTH, HEIGHT, null);
-    var pongTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PONG, WIDTH, HEIGHT, null);
+    var randomComplexNumbersTexture  = buildDataTexture(gl, UNIT_TEXTURE_RANDOM_COMPLEX_NUMBERS, TRANSFORM_SIZE, TRANSFORM_SIZE, 
+                                                        new Float32Array(randomNormalPairs));
+    var initHeightInFrequencyTexture = buildDataTexture(gl, UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
+    var pingTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PING, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
+    var pongTexture                  = buildDataTexture(gl, UNIT_TEXTURE_PONG, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
 
 
 
@@ -317,7 +272,7 @@
     var initHeightInFrequencyProgram = buildProgramData(gl, passPositionVertexShader, heightInitInFrequencyFragmentShader, 
         { 'a_position': A_POSITION_INDEX });
     gl.useProgram(initHeightInFrequencyProgram.program);
-    gl.uniform1i(initHeightInFrequencyProgram.uniformLocations['u_randomComplexNumbers'], UNIT_TEXTURE_RANDOM_NORMAL_PAIRS);
+    gl.uniform1i(initHeightInFrequencyProgram.uniformLocations['u_randomComplexNumbers'], UNIT_TEXTURE_RANDOM_COMPLEX_NUMBERS);
     gl.uniform2f(initHeightInFrequencyProgram.uniformLocations['u_windVector'], WIND_X, WIND_Y);
     gl.uniform1f(initHeightInFrequencyProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
     gl.uniform1f(initHeightInFrequencyProgram.uniformLocations['u_areaSize'], AREA_SIZE);
@@ -328,61 +283,47 @@
     gl.uniform1i(heightAfterTInFrequencyProgram.uniformLocations['u_h0'], UNIT_TEXTURE_INIT_HEIGHT_IN_FREQUENCY);
     gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
     gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_areaSize'], AREA_SIZE);
-    gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], 1.0);
 
-    var ifftRowsProgram = buildProgramData(gl, passPositionVertexShader, ifftRowsFragmentShader, 
+    var fftRowsProgram = buildProgramData(gl, passPositionVertexShader, fftRowsFragmentShader, 
         { 'a_position': A_POSITION_INDEX });
-    gl.useProgram(ifftRowsProgram.program);
-    // gl.uniform1i(ifftRowsProgram.uniformLocations['u_input'], UNIT_TEXTURE_PING);
-    gl.uniform1f(ifftRowsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
-    // gl.uniform1f(ifftRowsProgram.uniformLocations['u_subtransformSize'], TRANSFORM_SIZE);
+    gl.useProgram(fftRowsProgram.program);
+    gl.uniform1f(fftRowsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
 
-    var ifftColsProgram = buildProgramData(gl, passPositionVertexShader, ifftColsFragmentShader, 
+    var fftColsProgram = buildProgramData(gl, passPositionVertexShader, fftColsFragmentShader, 
         { 'a_position': A_POSITION_INDEX });
-    gl.useProgram(ifftColsProgram.program);
-    // gl.uniform1i(ifftColsProgram.uniformLocations['u_input'], UNIT_TEXTURE_PING);
-    gl.uniform1f(ifftColsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
-    // gl.uniform1f(ifftColsProgram.uniformLocations['u_subtransformSize'], TRANSFORM_SIZE);
+    gl.useProgram(fftColsProgram.program);
+    gl.uniform1f(fftColsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
 
     var displayHeightProgram = buildProgramData(gl, passPositionVertexShader, displayHeightShader, 
         { 'a_position': A_POSITION_INDEX });
     gl.useProgram(displayHeightProgram.program);
 
-    var conjugateProgram = buildProgramData(gl, passPositionVertexShader, conjugateShader, 
-        { 'a_position': A_POSITION_INDEX });
-    gl.useProgram(conjugateProgram.program);
+
+   
+
+    /*****************************************************************/
+    /*******************INIT INPUT VERTEX BIFFER**********************/
+    /*****************************************************************/
+
+    var fullscreenVertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, fullscreenVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]), gl.STATIC_DRAW); 
+
+    gl.enableVertexAttribArray(A_POSITION_INDEX);
+    gl.vertexAttribPointer(A_POSITION_INDEX, 2, gl.FLOAT, false, 0, 0);
+
 
     /*****************************************************************/
     /****************RENDER INIT HEIGHT IN FREQUENCY******************/
     /*****************************************************************/
 
-    gl.enableVertexAttribArray(A_POSITION_INDEX);
-
-    var fullscreenVertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, fullscreenVertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0]), gl.STATIC_DRAW); 
-  
-
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, fullscreenVertexBuffer);
-    gl.vertexAttribPointer(A_POSITION_INDEX, 2, gl.FLOAT, false, 0, 0);
-
-
-
     gl.useProgram(initHeightInFrequencyProgram.program);
-    // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, initHeightInFrequencyFramebuffer);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
 
 
-
-
-
-
-
     var time = 0.0;
-
     var nextFrame = function(){
         time += 0.1;
 
@@ -390,28 +331,15 @@
         gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], time);
         changeCurrentPingPong();
         gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.useProgram(conjugateProgram.program);
-        gl.uniform1i(conjugateProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
-        changeCurrentPingPong();
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-
         var subtransformSize = 2;
         while(subtransformSize <= TRANSFORM_SIZE){
-            gl.useProgram(ifftRowsProgram.program);
-            gl.uniform1i(ifftRowsProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
-            gl.uniform1f(ifftRowsProgram.uniformLocations['u_subtransformSize'], subtransformSize);
+            gl.useProgram(fftRowsProgram.program);
+            gl.uniform1i(fftRowsProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
+            gl.uniform1f(fftRowsProgram.uniformLocations['u_subtransformSize'], subtransformSize);
 
             changeCurrentPingPong();
             gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
-            if(subtransformSize == 512){
-                // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-            }
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             subtransformSize *= 2;
@@ -419,27 +347,16 @@
 
         subtransformSize = 2;
         while(subtransformSize <= TRANSFORM_SIZE){
-            gl.useProgram(ifftColsProgram.program);
-            gl.uniform1i(ifftColsProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
-            gl.uniform1f(ifftColsProgram.uniformLocations['u_subtransformSize'], subtransformSize);
+            gl.useProgram(fftColsProgram.program);
+            gl.uniform1i(fftColsProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
+            gl.uniform1f(fftColsProgram.uniformLocations['u_subtransformSize'], subtransformSize);
 
             changeCurrentPingPong();
             gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
-            if(subtransformSize == 512){
-                // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-            }
             gl.drawArrays(gl.TRIANGLES, 0, 6);
 
             subtransformSize *= 2;
         }
-
-
-        gl.useProgram(conjugateProgram.program);
-        gl.uniform1i(conjugateProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
-        changeCurrentPingPong();
-        gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
 
         gl.useProgram(displayHeightProgram.program);
         gl.uniform1i(displayHeightProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
@@ -447,11 +364,46 @@
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         
-
-        setTimeout(nextFrame, 100);
+        setTimeout(nextFrame, 10);
     }
 
     nextFrame();
 
 
 </script>
+
+<!--conjugate stuff
+
+<script id="conjugate-fragment-shader" type="x-shader/x-fragment">
+    precision highp float;
+
+    varying vec2 v_position; //[-1, 1]
+
+    uniform sampler2D u_input;
+
+    float position2TexturePosition(float pos){
+        return pos * 0.5 + 0.5;
+    }
+
+    void main(void) {
+        vec4 val = texture2D(u_input, vec2(position2TexturePosition(v_position.x), position2TexturePosition(v_position.y)));
+        gl_FragColor = vec4(val.x, -val.y, 0, 1);
+    }
+</script>
+
+
+    var conjugateShaderSource = document.getElementById('conjugate-fragment-shader').text;
+    var conjugateShader = buildFragmentShader(gl, conjugateShaderSource);
+
+    
+
+    var conjugateProgram = buildProgramData(gl, passPositionVertexShader, conjugateShader, 
+        { 'a_position': A_POSITION_INDEX });
+    gl.useProgram(conjugateProgram.program);
+
+    gl.useProgram(conjugateProgram.program);
+    gl.uniform1i(conjugateProgram.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
+    changeCurrentPingPong();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, getCurrentPingPongFramebuffer());
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+ -->
