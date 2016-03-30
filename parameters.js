@@ -9,10 +9,10 @@ var UNIT_TEXTURE_PING = 2;
 var UNIT_TEXTURE_PONG = 3;
 
 var TRANSFORM_SIZE = 512;
-var AREA_SIZE = 10000;
+var AREA_SIZE = 50;
 
-var WIND_X = 10;
-var WIND_Y = 10;
+var WIND_X = 100;
+var WIND_Y = 1;
 
 var randomNormal = function() {
     return (Math.random() + Math.random() + Math.random() + Math.random() + Math.random() + Math.random() - 3) / 3;
