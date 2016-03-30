@@ -1,1 +1,2 @@
-# ocean-waves
+# Ocean waves
+Author: Wojciech Pachuta
