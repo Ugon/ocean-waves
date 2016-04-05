@@ -137,7 +137,7 @@
 </script>
 
 
-<script id="fft-rows-fragment-shader" type="x-shader/x-fragment">
+<script id="fft-fragment-shader" type="x-shader/x-fragment">
     precision highp float;
 
     uniform sampler2D u_input;
@@ -157,15 +157,31 @@
     void main(void) {
         float index_x = gl_FragCoord.x; //[0, u_transformSize)
         float index_y = gl_FragCoord.y; //[0, u_transformSize)
+
+    #ifdef ROWS
         float base    = floor(index_x / u_subtransformSize) * u_subtransformSize * 0.5;
         float offset  = mod(index_x, u_subtransformSize * 0.5);
-        float x0      = base + offset;
-        float x1      = x0 + u_transformSize * 0.5;
+    #endif
 
-        vec2 twiddle  = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
+    #ifdef COLS
+        float base    = floor(index_y / u_subtransformSize) * u_subtransformSize * 0.5;
+        float offset  = mod(index_y, u_subtransformSize * 0.5);
+    #endif
 
-        vec4 textureValue0 = texture2D(u_input, index2TexturePosition(vec2(x0, index_y)));
-        vec4 textureValue1 = texture2D(u_input, index2TexturePosition(vec2(x1, index_y)));
+        float index_0      = base + offset;
+        float index_1      = index_0 + u_transformSize * 0.5;
+
+    #ifdef ROWS
+        vec2 twiddle       = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
+        vec4 textureValue0 = texture2D(u_input, index2TexturePosition(vec2(index_0, index_y)));
+        vec4 textureValue1 = texture2D(u_input, index2TexturePosition(vec2(index_1, index_y)));
+    #endif
+
+    #ifdef COLS
+        vec2 twiddle       = complexTryg((-2.0) * PI * (index_y / u_subtransformSize));
+        vec4 textureValue0 = texture2D(u_input, index2TexturePosition(vec2(index_x, index_0)));
+        vec4 textureValue1 = texture2D(u_input, index2TexturePosition(vec2(index_x, index_1)));
+    #endif
 
         vec2 val0_0     = textureValue0.xy;
         vec2 val1_0     = textureValue1.xy;
@@ -176,55 +192,6 @@
         vec2 val0_1     = textureValue0.zw;
         vec2 val1_1     = textureValue1.zw;
         vec2 result_1   = vec2(val0_1.x + twiddle.x * val1_1.x - twiddle.y * val1_1.y,
-                               val0_1.y + twiddle.y * val1_1.x + twiddle.x * val1_1.y);
-    #endif
-
-    #ifdef DOUBLE
-        gl_FragColor = vec4(result_0, result_1);        
-    #else   
-        gl_FragColor = vec4(result_0, 0, 1);        
-    #endif
-    }
-</script>
-
-<script id="fft-cols-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    uniform sampler2D u_input;
-    uniform float u_transformSize;
-    uniform float u_subtransformSize;
-
-    float PI = 3.14159265359;
-
-    vec2 complexTryg(float alpha){
-        return vec2(cos(alpha), sin(alpha));
-    }
-
-    float index2TexturePosition(float ind){
-        return ind / u_transformSize;
-    }
-
-    void main(void) {
-        float index_x = gl_FragCoord.x; //[0, u_transformSize)
-        float index_y = gl_FragCoord.y; //[0, u_transformSize)
-        float base    = floor(index_y / u_subtransformSize) * u_subtransformSize * 0.5;
-        float offset  = mod(index_y, u_subtransformSize * 0.5);
-        float y0      = base + offset;
-        float y1      = y0 + u_transformSize * 0.5;
-
-        vec2 twiddle  = complexTryg((-2.0) * PI * (index_y / u_subtransformSize));
-
-        vec4 textureValue0 = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y0)));
-        vec4 textureValue1 = texture2D(u_input, vec2(index2TexturePosition(index_x), index2TexturePosition(y1)));
-
-        vec2 val0_0     = textureValue0.xy;
-        vec2 val1_0     = textureValue1.xy;
-        vec2 result_0   = vec2(val0_0.x + twiddle.x * val1_0.x - twiddle.y * val1_0.y, 
-                               val0_0.y + twiddle.y * val1_0.x + twiddle.x * val1_0.y);
-    #ifdef DOUBLE
-        vec2 val0_1     = textureValue0.zw;
-        vec2 val1_1     = textureValue1.zw;
-        vec2 result_1   = vec2(val0_1.x + twiddle.x * val1_1.x - twiddle.y * val1_1.y, 
                                val0_1.y + twiddle.y * val1_1.x + twiddle.x * val1_1.y);
     #endif
 
@@ -285,16 +252,16 @@
     var displacementAfterTInFrequencyFragmentShaderSource = document.getElementById('displacement-after-t-in-frequency-fragment-shader').text;
     var displacementAfterTInFrequencyFragmentShader = buildFragmentShader(gl, displacementAfterTInFrequencyFragmentShaderSource);
 
-    var fft1RowsFragmentShaderSource = document.getElementById('fft-rows-fragment-shader').text;
+    var fft1RowsFragmentShaderSource = '#define ROWS\n' + document.getElementById('fft-fragment-shader').text;
     var fft1RowsFragmentShader = buildFragmentShader(gl, fft1RowsFragmentShaderSource);
     
-    var fft1ColsFragmentShaderSource = document.getElementById('fft-cols-fragment-shader').text;
+    var fft1ColsFragmentShaderSource = '#define COLS\n' + document.getElementById('fft-fragment-shader').text;
     var fft1ColsFragmentShader = buildFragmentShader(gl, fft1ColsFragmentShaderSource);
  
-    var fft2RowsFragmentShaderSource = '#define DOUBLE\n' + document.getElementById('fft-rows-fragment-shader').text;
+    var fft2RowsFragmentShaderSource = '#define ROWS\n' + '#define DOUBLE\n' + document.getElementById('fft-fragment-shader').text;
     var fft2RowsFragmentShader = buildFragmentShader(gl, fft2RowsFragmentShaderSource);
     
-    var fft2ColsFragmentShaderSource = '#define DOUBLE\n' + document.getElementById('fft-cols-fragment-shader').text;
+    var fft2ColsFragmentShaderSource = '#define COLS\n' + '#define DOUBLE\n' + document.getElementById('fft-fragment-shader').text;
     var fft2ColsFragmentShader = buildFragmentShader(gl, fft2ColsFragmentShaderSource);
 
     var displayHeightShaderSource = document.getElementById('display-height-fragment-shader').text;
