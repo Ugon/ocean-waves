@@ -24,6 +24,7 @@
 </script>
 
 <script id="height-init-in-frequency-fragment-shader" type="x-shader/x-fragment">
+    // #define PHILLIPS_CONST
     precision highp float;
 
     uniform sampler2D u_randomComplexNumbers;
@@ -53,7 +54,8 @@
         float L = V * V / g;
 
         //Phillips spectrum
-        float Ph = pow(e, (-1.0 / square(klen * L))) / square(klen * klen) 
+        float Ph = PHILLIPS_CONST
+                 * pow(e, (-1.0 / square(klen * L))) / square(klen * klen) 
                  * square(dot(normalize(k), normalize(u_windVector)))      //direction factor
                  * pow(e, -square(klen * u_areaSize / 1000.0));            //remove small waves
         float sqrtPh = sqrt(Ph * 0.5);
@@ -225,6 +227,7 @@
 </script>
 
 <script id="grid-vertex-shader" type="x-shader/x-vertex">
+    // #define DISPLACEMENT_CONST 
     precision highp float;
     
     attribute vec2 a_position; //[-1, 1]
@@ -241,15 +244,14 @@
     void main(void) {
         vec2 texPos = position2TexturePosition(a_position);
 
-        float height      = texture2D(u_height, texPos).x;
+        float height      = texture2D(u_height, texPos).x ;
         vec2 displacement = texture2D(u_displacement, texPos).xz;
 
-        // vec3 position = vec3(a_position.x + displacement.x, height, a_position.y + displacement.y);
-        vec3 position = vec3(displacement.x, height, 0);
+        vec2 dispPos = a_position + displacement * DISPLACEMENT_CONST;
+        vec3 position = vec3(dispPos.x * 0.8, height, dispPos.y);
 
         v_position = position;
-        // gl_Position = vec4(position, 1);
-        gl_Position = vec4(a_position, 0, 1);
+        gl_Position = vec4(position, 1);
     }
 </script>
 
@@ -258,12 +260,12 @@
 
     varying vec3 v_position;
 
-   float position2TexturePosition(float pos){
+    float position2TexturePosition(float pos){
         return pos * 0.5 + 0.5;
     }
 
     void main(void) {
-        gl_FragColor = vec4(v_position / 500000., 1);
+        gl_FragColor = vec4(v_position.zzz, 1);
         // gl_FragColor = vec4(1, 0, 0, 1);
     }
 </script>
@@ -284,8 +286,10 @@
     /*****************************************************************/
     var passPositionVertexShaderSource = document.getElementById('pass-position-vertex-shader').text;
     var passPositionVertexShader = buildVertexShader(gl, passPositionVertexShaderSource);
-    
-    var heightInitInFrequencyFragmentShaderSource = document.getElementById('height-init-in-frequency-fragment-shader').text;
+
+    var heightInitInFrequencyFragmentShaderSource = 
+        '#define PHILLIPS_CONST {0}\n'.format(f2s(PHILLIPS_CONST)) +
+        document.getElementById('height-init-in-frequency-fragment-shader').text;
     var heightInitInFrequencyFragmentShader = buildFragmentShader(gl, heightInitInFrequencyFragmentShaderSource);
 
     var heightAfterTInFrequencyFragmentShaderSource = document.getElementById('height-after-t-in-frequency-fragment-shader').text;
@@ -294,22 +298,34 @@
     var displacementAfterTInFrequencyFragmentShaderSource = document.getElementById('displacement-after-t-in-frequency-fragment-shader').text;
     var displacementAfterTInFrequencyFragmentShader = buildFragmentShader(gl, displacementAfterTInFrequencyFragmentShaderSource);
 
-    var fft1RowsFragmentShaderSource = '#define ROWS\n' + document.getElementById('fft-fragment-shader').text;
+    var fft1RowsFragmentShaderSource = 
+        '#define ROWS\n' + 
+        document.getElementById('fft-fragment-shader').text;
     var fft1RowsFragmentShader = buildFragmentShader(gl, fft1RowsFragmentShaderSource);
     
-    var fft1ColsFragmentShaderSource = '#define COLS\n' + document.getElementById('fft-fragment-shader').text;
+    var fft1ColsFragmentShaderSource = 
+        '#define COLS\n' + 
+        document.getElementById('fft-fragment-shader').text;
     var fft1ColsFragmentShader = buildFragmentShader(gl, fft1ColsFragmentShaderSource);
  
-    var fft2RowsFragmentShaderSource = '#define ROWS\n' + '#define DOUBLE\n' + document.getElementById('fft-fragment-shader').text;
+    var fft2RowsFragmentShaderSource = 
+        '#define ROWS\n' + 
+        '#define DOUBLE\n' + 
+        document.getElementById('fft-fragment-shader').text;
     var fft2RowsFragmentShader = buildFragmentShader(gl, fft2RowsFragmentShaderSource);
     
-    var fft2ColsFragmentShaderSource = '#define COLS\n' + '#define DOUBLE\n' + document.getElementById('fft-fragment-shader').text;
+    var fft2ColsFragmentShaderSource = 
+        '#define COLS\n' + 
+        '#define DOUBLE\n' + 
+        document.getElementById('fft-fragment-shader').text;
     var fft2ColsFragmentShader = buildFragmentShader(gl, fft2ColsFragmentShaderSource);
 
     var displayHeightFragmentShaderSource = document.getElementById('display-height-fragment-shader').text;
     var displayHeightFragmentShader = buildFragmentShader(gl, displayHeightFragmentShaderSource);
 
-    var gridVertexShaderSource = document.getElementById('grid-vertex-shader').text;
+    var gridVertexShaderSource = 
+        '#define DISPLACEMENT_CONST {0}\n'.format(f2s(DISPLACEMENT_CONST)) +
+        document.getElementById('grid-vertex-shader').text;
     var gridVertexShader = buildVertexShader(gl, gridVertexShaderSource);
 
     var gridFragmentShaderSource = document.getElementById('grid-fragment-shader').text;
@@ -519,8 +535,9 @@
 
 
     var time = 0.0;
+
     var nextFrame = function(){
-        time += 0.1;
+        time += TIME_STEP;
 
         gl.useProgram(heightAfterTInFrequencyProgram.program);
         gl.uniform1f(heightAfterTInFrequencyProgram.uniformLocations['u_t'], time);
@@ -544,11 +561,13 @@
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, gridVertexNumber);
 
 
+    requestAnimationFrame(nextFrame);
 
-        setTimeout(nextFrame, 10);
+        // setTimeout(nextFrame, 10);
     }
+    requestAnimationFrame(nextFrame);
 
-    nextFrame();
+    // nextFrame();
 
 
 </script>

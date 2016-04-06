@@ -11,11 +11,32 @@ var UNIT_TEXTURE_PING = 6;
 var UNIT_TEXTURE_PONG = 7;
 
 var TRANSFORM_SIZE = 512;
-var AREA_SIZE = 5000;
 
-var WIND_X = 100;
-var WIND_Y = 10;
+var PHILLIPS_CONST = 0.1;
+var DISPLACEMENT_CONST = 0.3;
+var TIME_STEP = 0.01;
+
+var AREA_SIZE = 5;
+
+var WIND_X = 10;
+var WIND_Y = 100;
+
+String.prototype.format = function () {
+        var args = [].slice.call(arguments);
+        return this.replace(/(\{\d+\})/g, function (a){
+            return args[+(a.substr(1,a.length-2))||0];
+        });
+};
 
 var randomNormal = function() {
     return (Math.random() + Math.random() + Math.random() + Math.random() + Math.random() + Math.random() - 3) / 3;
+}
+
+var f2s = function(f) {
+	var s = f.toString();
+	if(s.includes('.')){
+		return s;
+	} else {
+		return s + '.0';
+	}
 }
