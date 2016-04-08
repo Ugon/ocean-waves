@@ -12,14 +12,38 @@ var UNIT_TEXTURE_PONG = 7;
 
 var TRANSFORM_SIZE = 512;
 
-var PHILLIPS_CONST = 0.1;
-var DISPLACEMENT_CONST = 0.3;
+var PHILLIPS_CONST = 0.00003;
+var DISPLACEMENT_CONST = 0.01;
 var TIME_STEP = 0.01;
 
-var AREA_SIZE = 5;
+var AREA_SIZE = 45;
 
-var WIND_X = 10;
-var WIND_Y = 100;
+var WIND_X = 1;
+var WIND_Y = -10;
+
+
+
+
+
+
+/////////////////CAMERA////////////////
+INIT_AZIMUTH = 0;
+INIT_ELEVATION = Math.PI / 4;
+INIT_DISTANCE = 1;
+
+MIN_AZIMUTH = -Math.PI / 2;
+MAX_AZIMUTH =  Math.PI / 2;
+
+MIN_ELEVATION = 0;
+MAX_ELEVATION = Math.PI / 2;
+
+MIN_DISTANCE = 1;
+MAX_DISTANCE = 1; 
+
+
+
+
+
 
 String.prototype.format = function () {
         var args = [].slice.call(arguments);

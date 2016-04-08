@@ -7,6 +7,8 @@
     <canvas id="canvas"></canvas>
 </body>
 
+<script type="text/javascript" src='lib/gl-matrix.js'></script>
+<script type="text/javascript" src="camera.js"></script>
 <script type="text/javascript" src="parameters.js"></script>
 <script type="text/javascript" src="webgl-boilerplate.js"></script>
 
@@ -33,7 +35,6 @@
     uniform float     u_areaSize;
 
     float PI = 3.14159265359;
-    float e  = 2.71828182846;
     float g  = 9.81;
 
     float square(float a){
@@ -55,9 +56,9 @@
 
         //Phillips spectrum
         float Ph = PHILLIPS_CONST
-                 * pow(e, (-1.0 / square(klen * L))) / square(klen * klen) 
+                 * exp((-1.0 / square(klen * L))) / square(klen * klen) 
                  * square(dot(normalize(k), normalize(u_windVector)))      //direction factor
-                 * pow(e, -square(klen * u_areaSize / 1000.0));            //remove small waves
+                 * exp(-square(klen * u_areaSize / 1000.0));               //remove small waves
         float sqrtPh = sqrt(Ph * 0.5);
 
         vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, index2TexturePosition(index_xy)).xy;
@@ -120,8 +121,8 @@
         return ind / u_transformSize;
     }
 
-    vec2 complexMultMinusI(vec2 complex){
-        return vec2(complex.y, -complex.x);
+    vec2 complexMultI(vec2 complex){
+        return vec2(-complex.y, complex.x);
     }
 
     void main(void) {
@@ -131,8 +132,8 @@
         vec2 hkt      = height_k.xy;
         vec2 k        = height_k.zw;
 
-        vec2 ihkt_x   = complexMultMinusI(hkt * k.x / length(k));
-        vec2 ihkt_y   = complexMultMinusI(hkt * k.y / length(k));
+        vec2 ihkt_x   = -complexMultI(hkt * k.x / length(k));
+        vec2 ihkt_y   = -complexMultI(hkt * k.y / length(k));
 
         gl_FragColor  = vec4(ihkt_x, ihkt_y);
     }
@@ -205,27 +206,6 @@
     }
 </script>
 
-<script id="display-height-fragment-shader" type="x-shader/x-fragment">
-    precision highp float;
-
-    varying vec2 v_position; //[-1, 1]
-
-    uniform sampler2D u_input;
-
-    vec2 position2TexturePosition(vec2 pos){
-        return pos * 0.5 + 0.5;
-    }
-
-    void main(void) {
-        vec4 val = texture2D(u_input, position2TexturePosition(v_position));
-        float v = val.x / 500000.;
-        gl_FragColor = val / 500000.;
-        // gl_FragColor = vec4(val.xy / 500000., 0, 1);
-        // gl_FragColor = vec4((val.xy - val.zw) / 500000., 0, 1);
-        // gl_FragColor = vec4(0.5, 0.5, 0, 1);
-    }
-</script>
-
 <script id="grid-vertex-shader" type="x-shader/x-vertex">
     // #define DISPLACEMENT_CONST 
     precision highp float;
@@ -237,6 +217,9 @@
     uniform sampler2D u_height;
     uniform sampler2D u_displacement;
     
+    uniform mat4 u_perspectiveMatrix;
+    uniform mat4 u_viewMatrix;
+    
     vec2 position2TexturePosition(vec2 pos){
         return pos * 0.5 + 0.5;
     }
@@ -244,14 +227,17 @@
     void main(void) {
         vec2 texPos = position2TexturePosition(a_position);
 
-        float height      = texture2D(u_height, texPos).x ;
-        vec2 displacement = texture2D(u_displacement, texPos).xz;
+        float height         = length(texture2D(u_height, texPos).xy);
+        float displacement_x = length(texture2D(u_displacement, texPos).xy);
+        float displacement_y = length(texture2D(u_displacement, texPos).zw);
+        vec2  displacement   = vec2(displacement_x, displacement_y);
 
         vec2 dispPos = a_position + displacement * DISPLACEMENT_CONST;
-        vec3 position = vec3(dispPos.x * 0.8, height, dispPos.y);
+        vec3 position = vec3(dispPos.x, height, dispPos.y);
 
         v_position = position;
-        gl_Position = vec4(position, 1);
+        v_position.z = height;
+        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);
     }
 </script>
 
@@ -265,7 +251,8 @@
     }
 
     void main(void) {
-        gl_FragColor = vec4(v_position.zzz, 1);
+        // gl_FragColor = vec4(0.9 * (v_position.zzz * 0.5 + 0.5), 1);
+        gl_FragColor = vec4(0.9 * (v_position.zzz * 0.5 + 0.5), 1);
         // gl_FragColor = vec4(1, 0, 0, 1);
     }
 </script>
@@ -274,8 +261,9 @@
 
 <script>
     var canvas = document.getElementById('canvas');
-    canvas.width = TRANSFORM_SIZE;
-    canvas.height = TRANSFORM_SIZE;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
 
     var gl = canvas.getContext('experimental-webgl');
     gl.getExtension('OES_texture_float');
@@ -319,9 +307,6 @@
         '#define DOUBLE\n' + 
         document.getElementById('fft-fragment-shader').text;
     var fft2ColsFragmentShader = buildFragmentShader(gl, fft2ColsFragmentShaderSource);
-
-    var displayHeightFragmentShaderSource = document.getElementById('display-height-fragment-shader').text;
-    var displayHeightFragmentShader = buildFragmentShader(gl, displayHeightFragmentShaderSource);
 
     var gridVertexShaderSource = 
         '#define DISPLACEMENT_CONST {0}\n'.format(f2s(DISPLACEMENT_CONST)) +
@@ -416,10 +401,6 @@
     gl.useProgram(fft2ColsProgram.program);
     gl.uniform1f(fft2ColsProgram.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
 
-    var displayHeightProgram = buildProgramData(gl, passPositionVertexShader, displayHeightFragmentShader, 
-        { 'a_position': INDEX_BUFFER_FULLSCREEN });
-    gl.useProgram(displayHeightProgram.program);
-
     var gridProgram = buildProgramData(gl, gridVertexShader, gridFragmentShader, 
         { 'a_position': INDEX_BUFFER_GRID });
         // { 'a_position': INDEX_BUFFER_FULLSCREEN });
@@ -434,25 +415,30 @@
     var fullscreenVertexNumber = 4;
     
     var gridBufferData = [];
-    var gridVertexNumber = 2 * TRANSFORM_SIZE * TRANSFORM_SIZE - 4;
+    var gridVertexNumber = 3 * (TRANSFORM_SIZE - 1) * (TRANSFORM_SIZE - 1) * 2;
 
     for(var z = 0; z < TRANSFORM_SIZE - 1; z++){
-        var t =  (z      / TRANSFORM_SIZE) * 2 - 1;
-        var b = ((z + 1) / TRANSFORM_SIZE) * 2 - 1;
-
-        gridBufferData.push(0.0);
-        gridBufferData.push(top);
-        for(var x = 0; x < TRANSFORM_SIZE; x++){
-            var lr =  (x / TRANSFORM_SIZE) * 2 - 1;
-            gridBufferData.push(lr);
+        var t =  z      / TRANSFORM_SIZE * 2 - 1;
+        var b = (z + 1) / TRANSFORM_SIZE * 2 - 1;
+        for(var x = 0; x < TRANSFORM_SIZE - 1; x++){
+            var l =  x      / TRANSFORM_SIZE * 2 - 1;
+            var r = (x + 1) / TRANSFORM_SIZE * 2 - 1;
+            gridBufferData.push(l);
             gridBufferData.push(t);
-            gridBufferData.push(lr);
+            gridBufferData.push(l);
             gridBufferData.push(b);
+            gridBufferData.push(r);
+            gridBufferData.push(b);
+
+            gridBufferData.push(r);
+            gridBufferData.push(b);
+            gridBufferData.push(r);
+            gridBufferData.push(t);
+            gridBufferData.push(l);
+            gridBufferData.push(t);
         }
-        gridBufferData.push((TRANSFORM_SIZE - 1) / TRANSFORM_SIZE);
-        gridBufferData.push(b);
     }
-    gridBufferData = gridBufferData.slice(2, -2);
+
 
 
     gl.enableVertexAttribArray(INDEX_BUFFER_FULLSCREEN);
@@ -521,8 +507,6 @@
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, fullscreenVertexNumber);
     }
 
-   
-
 
     /*****************************************************************/
     /****************RENDER INIT HEIGHT IN FREQUENCY******************/
@@ -535,6 +519,29 @@
 
 
     var time = 0.0;
+
+    // var camera = new Camera();
+    // console.log(camera);
+    // var viewMatrix = camera.getViewMatrix();
+    
+
+    var viewMatrix = mat4.create();
+    var projectonMatrix = mat4.create();
+    var distanceVec = vec3.create();
+    var scaleVec = vec3.create();
+
+
+    mat4.perspective(projectonMatrix, (60 / 180) * Math.PI, window.innerWidth/window.innerHeight, 0, 10000);
+
+    vec3.set(distanceVec, 0, 0, -2.5);
+    vec3.set(scaleVec, 0.8, 0.8, 0.8);
+
+    // mat4.scale(viewMatrix, viewMatrix, scaleVec);
+    mat4.translate(viewMatrix, viewMatrix, distanceVec);
+    mat4.rotateX(viewMatrix, viewMatrix, Math.PI/4);
+    mat4.rotateY(viewMatrix, viewMatrix, Math.PI/3);
+
+    console.log(viewMatrix);
 
     var nextFrame = function(){
         time += TIME_STEP;
@@ -550,24 +557,16 @@
 
         runFFT(fft1RowsProgram, fft1ColsProgram, UNIT_TEXTURE_HEIGHT_AFTER_T_IN_FREQUENCY, heightAfterTInTimeFramebuffer);
         runFFT(fft2RowsProgram, fft2ColsProgram, UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_FREQUENCY, displacementAfterTInTimeFramebuffer);
-/*
-        gl.useProgram(displayHeightProgram.program);
-        gl.uniform1i(displayHeightProgram.uniformLocations['u_input'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, fullscreenVertexNumber);
-  */      
+
         gl.useProgram(gridProgram.program);
+        gl.uniformMatrix4fv(gridProgram.uniformLocations['u_viewMatrix'], false, viewMatrix);
+        gl.uniformMatrix4fv(gridProgram.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, gridVertexNumber);
+        gl.drawArrays(gl.TRIANGLES, 0, gridVertexNumber);
 
-
-    requestAnimationFrame(nextFrame);
-
-        // setTimeout(nextFrame, 10);
+        requestAnimationFrame(nextFrame);
     }
+
     requestAnimationFrame(nextFrame);
-
-    // nextFrame();
-
 
 </script>
