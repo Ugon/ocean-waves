@@ -8,9 +8,9 @@ var Renderer = function(canvas) {
     /*****************************************************************/
     var vertexShaderSourcePassPosition = VERTEX_SHADER_SOURCE_DO_NOTHING;
 
-    var vertexShaderSourceGrid = 
+    var vertexShaderSourceOcean = 
         '#define DISPLACEMENT_CONST {0}\n'.format(f2s(DISPLACEMENT_CONST)) +
-        VERTEX_SHADER_SOURCE_GRID;
+        VERTEX_SHADER_SOURCE_OCEAN;
 
     var fragmentShaderSourceFFT1Rows = 
         '#define ROWS\n' + 
@@ -36,25 +36,32 @@ var Renderer = function(canvas) {
     
     var fragmentShaderSourceheightAfterTInFrequency = FRAGMENT_SHADER_SOURCE_HEIGHT_AFTER_T_IN_FREQUENCTY;
 
-    var fragmentShaderSourceDisplacementAfterTInFrequency = FRAGMENT_SHADER_SOURCE_DISPLACEMENT_AFTER_T_IN_FREQUENCY;
+    var fragmentShaderSourceDisplacementAfterTInFrequency = 
+        '#define DISPLACEMENT\n' +
+        FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY;
     
-    var fragmentShaderSourceGrid = FRAGMENT_SHADER_SOURCE_GRID;
+    var fragmentShaderSourceSlopeAfterTInFrequency = 
+        '#define SLOPE\n' +
+        FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY;
+
+    var fragmentShaderSourceOcean = FRAGMENT_SHADER_SOURCE_OCEAN;
 
 
     /*****************************************************************/
     /*************************BUILD SHADERS***************************/
     /*****************************************************************/
     var vertexShaderPassPosition                    = buildVertexShader(gl, vertexShaderSourcePassPosition);
-    var vertexShaderGrid                            = buildVertexShader(gl, vertexShaderSourceGrid);
+    var vertexShaderOcean                            = buildVertexShader(gl, vertexShaderSourceOcean);
     
     var fragmentShaderHeightInitInFrequency         = buildFragmentShader(gl, fragmentShaderSourceHeightInitInFrequency);
     var fragmentShaderHeightAfterTInFrequency       = buildFragmentShader(gl, fragmentShaderSourceheightAfterTInFrequency);
     var fragmentShaderDisplacementAfterTInFrequency = buildFragmentShader(gl, fragmentShaderSourceDisplacementAfterTInFrequency);
+    var fragmentShaderSlopeAfterTInFrequency        = buildFragmentShader(gl, fragmentShaderSourceSlopeAfterTInFrequency);
     var fragmentShaderFFT1Rows                      = buildFragmentShader(gl, fragmentShaderSourceFFT1Rows);
     var fragmentShaderFFT1Cols                      = buildFragmentShader(gl, fragmentShaderSourceFFT1Cols);
     var fragmentShaderFFT2Rows                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Rows);
     var fragmentShaderFFT2Cols                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Cols);
-    var fragmentShaderGrid                          = buildFragmentShader(gl, fragmentShaderSourceGrid);
+    var fragmentShaderOcean                          = buildFragmentShader(gl, fragmentShaderSourceOcean);
 
 
     /*****************************************************************/
@@ -75,6 +82,8 @@ var Renderer = function(canvas) {
     var textureHeightAfterTInTime            = buildDataTexture(gl, UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
     var textureDisplacementAfterTInFrequency = buildDataTexture(gl, UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_FREQUENCY, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
     var textureDisplacementAfterTInTime      = buildDataTexture(gl, UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
+    var textureSlopeAfterTInFrequency        = buildDataTexture(gl, UNIT_TEXTURE_SLOPE_AFTER_T_IN_FREQUENCY, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
+    var textureSlopeAfterTInTime             = buildDataTexture(gl, UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
     var texturePing                          = buildDataTexture(gl, UNIT_TEXTURE_PING, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
     var texturePong                          = buildDataTexture(gl, UNIT_TEXTURE_PONG, TRANSFORM_SIZE, TRANSFORM_SIZE, null);
 
@@ -87,13 +96,15 @@ var Renderer = function(canvas) {
     var framebufferHeightAfterTInTime            = buildFramebuffer(gl, textureHeightAfterTInTime);
     var framebufferDisplacementAfterTInFrequency = buildFramebuffer(gl, textureDisplacementAfterTInFrequency);
     var framebufferDisplacementAfterTInTime      = buildFramebuffer(gl, textureDisplacementAfterTInTime);
+    var framebufferSlopeAfterTInFrequency        = buildFramebuffer(gl, textureSlopeAfterTInFrequency);
+    var framebufferSlopeAfterTInTime             = buildFramebuffer(gl, textureSlopeAfterTInTime);
     var framebufferPing                          = buildFramebuffer(gl, texturePing);
     var framebufferPong                          = buildFramebuffer(gl, texturePong);
 
-    var isPingCurrent = true;
-    var changeCurrentPingPong = function() { isPingCurrent = !isPingCurrent; }
-    var getCurrentPingPongTexture = function() { return isPingCurrent ? pingTexture : pongTexture; }
-    var getCurrentPingPongFramebuffer = function() { return isPingCurrent ? framebufferPing : framebufferPong; }
+    var isPingCurrent                 = true;
+    var changeCurrentPingPong         = function() { isPingCurrent = !isPingCurrent; }
+    var getCurrentPingPongTexture     = function() { return isPingCurrent ? pingTexture       : pongTexture; }
+    var getCurrentPingPongFramebuffer = function() { return isPingCurrent ? framebufferPing   : framebufferPong; }
     var getCurrentPingPongTextureUnit = function() { return isPingCurrent ? UNIT_TEXTURE_PING : UNIT_TEXTURE_PONG; }
 
 
@@ -121,6 +132,12 @@ var Renderer = function(canvas) {
     gl.uniform1i(programDisplacementAfterTInFrequency.uniformLocations['u_height_k'], UNIT_TEXTURE_HEIGHT_AFTER_T_IN_FREQUENCY);
     gl.uniform1f(programDisplacementAfterTInFrequency.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
 
+    var programSlopeAfterTInFrequency = buildProgramData(gl, vertexShaderPassPosition, fragmentShaderDisplacementAfterTInFrequency, 
+        { 'a_position': INDEX_BUFFER_FULLSCREEN });
+    gl.useProgram(programSlopeAfterTInFrequency.program);
+    gl.uniform1i(programSlopeAfterTInFrequency.uniformLocations['u_height_k'], UNIT_TEXTURE_HEIGHT_AFTER_T_IN_FREQUENCY);
+    gl.uniform1f(programSlopeAfterTInFrequency.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
+
     var programFFT1Rows = buildProgramData(gl, vertexShaderPassPosition, fragmentShaderFFT1Rows, 
         { 'a_position': INDEX_BUFFER_FULLSCREEN });
     gl.useProgram(programFFT1Rows.program);
@@ -141,11 +158,12 @@ var Renderer = function(canvas) {
     gl.useProgram(programFFT2Cols.program);
     gl.uniform1f(programFFT2Cols.uniformLocations['u_transformSize'], TRANSFORM_SIZE);
 
-    var programGrid = buildProgramData(gl, vertexShaderGrid, fragmentShaderGrid, 
-        { 'a_position': INDEX_BUFFER_GRID });
-    gl.useProgram(programGrid.program);
-    gl.uniform1i(programGrid.uniformLocations['u_height'], UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
-    gl.uniform1i(programGrid.uniformLocations['u_displacement'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
+    var programOcean = buildProgramData(gl, vertexShaderOcean, fragmentShaderOcean, 
+        { 'a_position': INDEX_BUFFER_OCEAN });
+    gl.useProgram(programOcean.program);
+    gl.uniform1i(programOcean.uniformLocations['u_height'], UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
+    gl.uniform1i(programOcean.uniformLocations['u_displacement'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
+    gl.uniform1i(programOcean.uniformLocations['u_slope'], UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
 
 
     /*****************************************************************/
@@ -154,8 +172,8 @@ var Renderer = function(canvas) {
     var vertexBufferArrayFullscreen = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0];
     var vertexNumberFullscreen = 4;
     
-    var vertexBufferArrayGrid = [];
-    var vertexNumberGrid = 3 * (TRANSFORM_SIZE - 1) * (TRANSFORM_SIZE - 1) * 2;
+    var vertexBufferArrayOcean = [];
+    var vertexNumberOcean = 3 * (TRANSFORM_SIZE - 1) * (TRANSFORM_SIZE - 1) * 2;
 
     for(var z = 0; z < TRANSFORM_SIZE - 1; z++){
         var t =  z      / TRANSFORM_SIZE * 2 - 1;
@@ -163,19 +181,19 @@ var Renderer = function(canvas) {
         for(var x = 0; x < TRANSFORM_SIZE - 1; x++){
             var l =  x      / TRANSFORM_SIZE * 2 - 1;
             var r = (x + 1) / TRANSFORM_SIZE * 2 - 1;
-            vertexBufferArrayGrid.push(l);
-            vertexBufferArrayGrid.push(t);
-            vertexBufferArrayGrid.push(l);
-            vertexBufferArrayGrid.push(b);
-            vertexBufferArrayGrid.push(r);
-            vertexBufferArrayGrid.push(b);
+            vertexBufferArrayOcean.push(l);
+            vertexBufferArrayOcean.push(t);
+            vertexBufferArrayOcean.push(l);
+            vertexBufferArrayOcean.push(b);
+            vertexBufferArrayOcean.push(r);
+            vertexBufferArrayOcean.push(b);
 
-            vertexBufferArrayGrid.push(r);
-            vertexBufferArrayGrid.push(b);
-            vertexBufferArrayGrid.push(r);
-            vertexBufferArrayGrid.push(t);
-            vertexBufferArrayGrid.push(l);
-            vertexBufferArrayGrid.push(t);
+            vertexBufferArrayOcean.push(r);
+            vertexBufferArrayOcean.push(b);
+            vertexBufferArrayOcean.push(r);
+            vertexBufferArrayOcean.push(t);
+            vertexBufferArrayOcean.push(l);
+            vertexBufferArrayOcean.push(t);
         }
     }
 
@@ -184,13 +202,13 @@ var Renderer = function(canvas) {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBufferArrayFullscreen), gl.STATIC_DRAW); 
     gl.vertexAttribPointer(INDEX_BUFFER_FULLSCREEN, 2, gl.FLOAT, false, 0, 0);
 
-    var vertexBufferGrid = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferGrid);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBufferArrayGrid), gl.STATIC_DRAW); 
-    gl.vertexAttribPointer(INDEX_BUFFER_GRID, 2, gl.FLOAT, false, 0, 0);
+    var vertexBufferOcean = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferOcean);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBufferArrayOcean), gl.STATIC_DRAW); 
+    gl.vertexAttribPointer(INDEX_BUFFER_OCEAN, 2, gl.FLOAT, false, 0, 0);
   
     gl.enableVertexAttribArray(INDEX_BUFFER_FULLSCREEN);
-    gl.enableVertexAttribArray(INDEX_BUFFER_GRID);
+    gl.enableVertexAttribArray(INDEX_BUFFER_OCEAN);
 
 
     /*****************************************************************/
@@ -258,15 +276,20 @@ var Renderer = function(canvas) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferDisplacementAfterTInFrequency);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexNumberFullscreen);
 
+        gl.useProgram(programSlopeAfterTInFrequency.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebufferSlopeAfterTInFrequency);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexNumberFullscreen);
+
         runFFT(programFFT1Rows, programFFT1Cols, UNIT_TEXTURE_HEIGHT_AFTER_T_IN_FREQUENCY, framebufferHeightAfterTInTime);
         runFFT(programFFT2Rows, programFFT2Cols, UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_FREQUENCY, framebufferDisplacementAfterTInTime);
+        runFFT(programFFT2Rows, programFFT2Cols, UNIT_TEXTURE_SLOPE_AFTER_T_IN_FREQUENCY, framebufferSlopeAfterTInTime);
 
-        gl.useProgram(programGrid.program);
-        gl.uniformMatrix4fv(programGrid.uniformLocations['u_viewMatrix'], false, viewMatrix);
-        gl.uniformMatrix4fv(programGrid.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
+        gl.useProgram(programOcean.program);
+        gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
+        gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.drawArrays(gl.TRIANGLES, 0, vertexNumberGrid);
+        gl.drawArrays(gl.TRIANGLES, 0, vertexNumberOcean);
     }
 }
 
