@@ -3,10 +3,14 @@ var Camera = function () {
     var elevation = INIT_ELEVATION;
     var distance = INIT_DISTANCE;
 
-    var viewMat = mat4.create();
+    var viewMatrix = mat4.create();
     var positionVec = vec3.create();
     var distanceVec = vec3.create();
     var changed = true;
+
+    var clamp = function (num, lowBound, highBound) {
+        return Math.min(Math.max(num, lowBound), highBound);
+    }
 
     this.changeAzimuth = function (deltaAzimuth) {
         azimuth += deltaAzimuth;
@@ -27,11 +31,13 @@ var Camera = function () {
     }
 
     var calculateParams = function() {
-    	mat4.identity(viewMat);
-    	mat4.rotateX(viewMat, viewMat, elevation);
-    	mat4.rotateY(viewMat, viewMat, azimuth);
-    	vec3.set(distanceVec, 0, 0, distance);
-    	mat4.translate(viewMat, viewMat, distanceVec)
+        vec3.set(distanceVec, 0, 0, -distance);
+
+        mat4.identity(viewMatrix);
+        mat4.translate(viewMatrix, viewMatrix, distanceVec)
+        mat4.rotateX(viewMatrix, viewMatrix, (45/ 180) * Math.PI);
+        mat4.rotateY(viewMatrix, viewMatrix, azimuth);
+
 
     	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(-azimuth);
         y = distance * Math.cos(Math.PI / 2 - elevation);
@@ -52,6 +58,6 @@ var Camera = function () {
         	calculateParams();
             changed = false;
         }
-        return viewMat;
+        return viewMatrix;
     };
 };

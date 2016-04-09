@@ -520,28 +520,29 @@
 
     var time = 0.0;
 
-    // var camera = new Camera();
-    // console.log(camera);
-    // var viewMatrix = camera.getViewMatrix();
+    var camera = new Camera();
+    camera.changeAzimuth(100);
+    console.log(camera);
+    var viewMatrix = camera.getViewMatrix();
     
 
-    var viewMatrix = mat4.create();
+    // var viewMatrix = mat4.create();
     var projectonMatrix = mat4.create();
-    var distanceVec = vec3.create();
-    var scaleVec = vec3.create();
+    // var distanceVec = vec3.create();
+    // var scaleVec = vec3.create();
 
 
     mat4.perspective(projectonMatrix, (60 / 180) * Math.PI, window.innerWidth/window.innerHeight, 0, 10000);
 
-    vec3.set(distanceVec, 0, 0, -2.5);
-    vec3.set(scaleVec, 0.8, 0.8, 0.8);
+    // vec3.set(distanceVec, 0, 0, -2.5);
+    // vec3.set(scaleVec, 0.8, 0.8, 0.8);
 
     // mat4.scale(viewMatrix, viewMatrix, scaleVec);
-    mat4.translate(viewMatrix, viewMatrix, distanceVec);
-    mat4.rotateX(viewMatrix, viewMatrix, Math.PI/4);
-    mat4.rotateY(viewMatrix, viewMatrix, Math.PI/3);
+    // mat4.translate(viewMatrix, viewMatrix, distanceVec);
+    // mat4.rotateX(viewMatrix, viewMatrix, Math.PI/4);
+    // mat4.rotateY(viewMatrix, viewMatrix, Math.PI/3);
 
-    console.log(viewMatrix);
+    // console.log(viewMatrix);
 
     var nextFrame = function(){
         time += TIME_STEP;
