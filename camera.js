@@ -35,7 +35,7 @@ var Camera = function () {
 
         mat4.identity(viewMatrix);
         mat4.translate(viewMatrix, viewMatrix, distanceVec)
-        mat4.rotateX(viewMatrix, viewMatrix, (45/ 180) * Math.PI);
+        mat4.rotateX(viewMatrix, viewMatrix, elevation);
         mat4.rotateY(viewMatrix, viewMatrix, azimuth);
 
 

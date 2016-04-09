@@ -2,39 +2,92 @@
 <head>
     <title>Ocean Waves</title>
     <meta http-equiv="content-type" content="text/html">
+
+    <link href="style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
+    <div id="overlay"></div>
     <canvas id="canvas"></canvas>
 </body>
 
+<script type="text/javascript" src='ui.js'></script>
 <script type="text/javascript" src='shaders.js'></script>
 <script type="text/javascript" src='lib/gl-matrix.js'></script>
-<script type="text/javascript" src="camera.js"></script>
-<script type="text/javascript" src="renderer.js"></script>
 <script type="text/javascript" src="parameters.js"></script>
 <script type="text/javascript" src="utils.js"></script>
 <script type="text/javascript" src="webgl-boilerplate.js"></script>
+<script type="text/javascript" src="camera.js"></script>
+<script type="text/javascript" src="renderer.js"></script>
 
 <script>
-    var canvas = document.getElementById('canvas');
-    canvas.width = window.innerWidth;
+    var canvas     = document.getElementById('canvas');
+    var overlayDiv = document.getElementById('overlay');
+
+    canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    var renderer = new Renderer();
-    var camera = new Camera();
+    var renderer        = new Renderer(canvas);
+    var camera          = new Camera();
+    var projectonMatrix = mat4.create();
+  
+    /*****************************************************************/
+    /*********************ADD EVENT LISTENERS*************************/
+    /*****************************************************************/
+    var onWindowResize = function(event) {
+        var windowWidth = window.innerWidth;
+        var windowHeight = window.innerHeight;
     
+        canvas.width = windowWidth;
+        canvas.height = windowHeight;
+
+        overlayDiv.style.width = windowWidth + 'px';
+        overlayDiv.style.height = windowHeight + 'px';
+
+        mat4.perspective(projectonMatrix, FOV, windowWidth/windowHeight, NEAR, FAR);
+    }
+
+    window.addEventListener('resize', onWindowResize);
+
+    var mouseDown = false;
+    var lastMouseX = 0;
+    var lastMouseY = 0;
+
+    overlay.addEventListener('mousedown', function(event) {
+        mouseDown = true;
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    });
+
+    overlay.addEventListener('mousemove', function(event) {
+        if (mouseDown) {
+            var mouseX = event.clientX;
+            var mouseY = event.clientY;
+        
+            camera.changeAzimuth((mouseX - lastMouseX) * MOUSE_SENSITIVITY);
+            camera.changeElevation((mouseY - lastMouseY) * MOUSE_SENSITIVITY);
+        
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+        }
+    });
+
+    overlay.addEventListener('mouseup', function(event) {
+        mouseDown = false;
+    });
+
+
+
 
     camera.changeAzimuth(100);
     var viewMatrix = camera.getViewMatrix();
     
 
     // var viewMatrix = mat4.create();
-    var projectonMatrix = mat4.create();
     // var distanceVec = vec3.create();
     // var scaleVec = vec3.create();
 
 
-    mat4.perspective(projectonMatrix, (60 / 180) * Math.PI, window.innerWidth/window.innerHeight, 0, 10000);
+    // mat4.perspective(projectonMatrix, (60 / 180) * Math.PI, window.innerWidth/window.innerHeight, 0, 10000);
 
     // vec3.set(distanceVec, 0, 0, -2.5);
     // vec3.set(scaleVec, 0.8, 0.8, 0.8);
@@ -49,9 +102,10 @@
 
     var time = 0;
 
+    onWindowResize();
     var nextFrame = function(){
         time += TIME_STEP;
-        renderer.renderFrame(time, viewMatrix, projectonMatrix);
+        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix);
         requestAnimationFrame(nextFrame);
     }
     nextFrame();

@@ -41,6 +41,15 @@ MIN_DISTANCE  = 0;
 MAX_DISTANCE  = 1000; 
 
 
+MOUSE_SENSITIVITY = 0.001;
+
+
+
+NEAR = 0;
+FAR = 10000;
+FOV = (60 / 180) * Math.PI;
+
+
 
 
 

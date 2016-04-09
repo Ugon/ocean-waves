@@ -1,4 +1,4 @@
-var Renderer = function() {
+var Renderer = function(canvas) {
 	var gl = canvas.getContext('experimental-webgl');
     gl.getExtension('OES_texture_float');
 
@@ -265,6 +265,7 @@ var Renderer = function() {
         gl.uniformMatrix4fv(programGrid.uniformLocations['u_viewMatrix'], false, viewMatrix);
         gl.uniformMatrix4fv(programGrid.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, canvas.width, canvas.height);
         gl.drawArrays(gl.TRIANGLES, 0, vertexNumberGrid);
     }
 }
