@@ -26,7 +26,7 @@ var Camera = function () {
 
     this.changeDistance = function (deltaDistance) {
     	distance += deltaDistance;
-    	distance.clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
+    	distance = clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
     	changed = true;
     }
 
@@ -38,10 +38,9 @@ var Camera = function () {
         mat4.rotateX(viewMatrix, viewMatrix, elevation);
         mat4.rotateY(viewMatrix, viewMatrix, azimuth);
 
-
-    	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(-azimuth);
-        y = distance * Math.cos(Math.PI / 2 - elevation);
-        z = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(-azimuth);
+    	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(azimuth);
+        y = distance * Math.cos(Math.PI / 2 - elevation);  
+        z = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(azimuth);
         vec3.set(positionVec, x, y, z);
     }
 

@@ -1,82 +1,94 @@
 var VERTEX_SHADER_SOURCE_DO_NOTHING = `
     precision highp float;
-    
+
     attribute vec2 a_position;
-    
+
+    varying vec2 v_position;
+
     void main(void) {
+        v_position = a_position;
         gl_Position = vec4(a_position, 0, 1);
     }`
+
+
+var FRAGMENT_SHADER_DISPLAY = `
+    precision highp float;
+
+    varying vec2 v_position;
+    varying vec2 v_texturePosition;
+
+    uniform sampler2D u_input;
+
+    vec2 position2TexturePosition(vec2 pos){
+        return pos * 0.5 + 0.5;
+    }
+
+    void main(void) {
+        vec2 index_xy = gl_FragCoord.xy;                                          //[0, u_transformSize)
+        vec4 val = texture2D(u_input, v_position * 0.5 + 0.5);
+
+        gl_FragColor = vec4(val.xy, 0, 1);
+    }`
+
 
 
 /*****************************************************************/
 /*********************FFT FRAGMENT SHADER*************************/
 /*****************************************************************/
 var FRAGMENT_SHADER_SOURCE_FFT = `
-	// #defind ROWS
-	// #defind COLS
-	// #defind DOUBLE
-	precision highp float;
+    // #defind ROWS
+    // #defind DOUBLE
+
+    precision highp float;
+
+    float PI = ` + Math.PI + `;
 
     uniform sampler2D u_input;
     uniform float u_transformSize;
     uniform float u_subtransformSize;
 
-    float PI = ` + Math.PI + `;
-
     vec2 complexTryg(float alpha){
         return vec2(cos(alpha), sin(alpha));
     }
 
-    vec2 index2TexturePosition(vec2 ind){
-        return ind / u_transformSize;
+    vec2 complexMult(vec2 a, vec2 b) {
+        return vec2(a.x * b.x - a.y * b.y, a.y * b.x + a.x * b.y);
     }
 
-    void main(void) {
-        float index_x = gl_FragCoord.x; //[0, u_transformSize)
-        float index_y = gl_FragCoord.y; //[0, u_transformSize)
+    void main (void) {
 
     #ifdef ROWS
-        float base   = floor(index_x / u_subtransformSize) * u_subtransformSize * 0.5;
-        float offset = mod(index_x, u_subtransformSize * 0.5);
+        float index = gl_FragCoord.x - u_transformSize * 0.5 - 0.5;
+    #else
+        float index = gl_FragCoord.y - u_transformSize * 0.5 - 0.5;
     #endif
 
-    #ifdef COLS
-        float base   = floor(index_y / u_subtransformSize) * u_subtransformSize * 0.5;
-        float offset = mod(index_y, u_subtransformSize * 0.5);
-    #endif
+        float base = floor(index / u_subtransformSize) * (u_subtransformSize * 0.5);
+        float offset = mod(index, u_subtransformSize * 0.5);
 
-        float index_0 = base + offset;
-        float index_1 = index_0 + u_transformSize * 0.5;
+        float x0 = base + offset;
+        float x1 = x0 + u_transformSize * 0.5;
+
+        float angle = -2.0 * PI * (index / u_subtransformSize);
+        vec2 twiddle = complexTryg(angle);
 
     #ifdef ROWS
-        vec2 twiddle       = complexTryg((-2.0) * PI * (index_x / u_subtransformSize));
-        vec4 textureValue0 = texture2D(u_input, index2TexturePosition(vec2(index_0, index_y)));
-        vec4 textureValue1 = texture2D(u_input, index2TexturePosition(vec2(index_1, index_y)));
-    #endif
-
-    #ifdef COLS
-        vec2 twiddle       = complexTryg((-2.0) * PI * (index_y / u_subtransformSize));
-        vec4 textureValue0 = texture2D(u_input, index2TexturePosition(vec2(index_x, index_0)));
-        vec4 textureValue1 = texture2D(u_input, index2TexturePosition(vec2(index_x, index_1)));
-    #endif
-
-        vec2 val0_0   = textureValue0.xy;
-        vec2 val1_0   = textureValue1.xy;
-        vec2 result_0 = vec2(val0_0.x + twiddle.x * val1_0.x - twiddle.y * val1_0.y,
-                             val0_0.y + twiddle.y * val1_0.x + twiddle.x * val1_0.y);
-
-    #ifdef DOUBLE
-        vec2 val0_1   = textureValue0.zw;
-        vec2 val1_1   = textureValue1.zw;
-        vec2 result_1 = vec2(val0_1.x + twiddle.x * val1_1.x - twiddle.y * val1_1.y,
-                             val0_1.y + twiddle.y * val1_1.x + twiddle.x * val1_1.y);
+        vec4 val0 = texture2D(u_input, vec2(x0 + 0.5, gl_FragCoord.y) / u_transformSize);
+        vec4 val1 = texture2D(u_input, vec2(x1 + 0.5, gl_FragCoord.y) / u_transformSize);
+    #else
+        vec4 val0 = texture2D(u_input, vec2(gl_FragCoord.x, x0 + 0.5) / u_transformSize);
+        vec4 val1 = texture2D(u_input, vec2(gl_FragCoord.x, x1 + 0.5) / u_transformSize);
     #endif
 
     #ifdef DOUBLE
-        gl_FragColor = vec4(result_0, result_1);        
-    #else   
-        gl_FragColor = vec4(result_0, 0, 1);        
+        vec2 outputA = val0.xy + complexMult(twiddle, val1.xy);
+        vec2 outputB = val0.zw + complexMult(twiddle, val1.zw);
+    #else
+        vec2 outputA = val0.xy + complexMult(twiddle, val1.xy);
+        vec2 outputB = texture2D(u_input, gl_FragCoord.xy / u_transformSize).zw;
     #endif
+
+        gl_FragColor = vec4(outputA, outputB);
     }`
 
 
@@ -99,13 +111,9 @@ var FRAGMENT_SHADER_SOURCE_HEIGHT_INIT_IN_FREQUENCY = `
         return a * a;
     }
 
-    vec2 index2TexturePosition(vec2 ind){
-        return ind / u_transformSize;
-    }
-
     void main(void) {
-        vec2 index_xy = gl_FragCoord.xy;                                          //[0, u_transformSize)
-        vec2 nm       = index_xy - vec2(u_transformSize, u_transformSize) * 0.5;  //[-u_transformSize/2, u_transformSize/2)
+        vec2 index_xy = gl_FragCoord.xy;                   //[0, u_transformSize)
+        vec2 nm       = index_xy - u_transformSize * 0.5;  //[-u_transformSize/2, u_transformSize/2)
         vec2 k        = 2.0 * nm * PI / u_areaSize;
         float klen = length(k);
 
@@ -119,17 +127,17 @@ var FRAGMENT_SHADER_SOURCE_HEIGHT_INIT_IN_FREQUENCY = `
                  * exp(-square(klen * u_areaSize / 1000.0));               //remove small waves
         float sqrtPh = sqrt(Ph * 0.5);
 
-        vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, index2TexturePosition(index_xy)).xy;
+        vec2 randomComplexNumber = texture2D(u_randomComplexNumbers, gl_FragCoord.xy / u_transformSize).xy;
         vec2 h0 = randomComplexNumber * sqrtPh;
 
-        gl_FragColor = vec4(h0, 0, 1);
+        gl_FragColor = vec4(h0, k);
     }`
 
 
 var FRAGMENT_SHADER_SOURCE_HEIGHT_AFTER_T_IN_FREQUENCTY = `
     precision highp float;
 
-    uniform sampler2D u_h0;
+    uniform sampler2D u_h0_k;
     uniform float     u_transformSize; 
     uniform float     u_areaSize;
     uniform float     u_t;
@@ -141,21 +149,11 @@ var FRAGMENT_SHADER_SOURCE_HEIGHT_AFTER_T_IN_FREQUENCTY = `
         return sqrt(g * klen);
     }
     
-    vec2 index2TexturePosition(vec2 ind){
-        return ind / u_transformSize;
-    }
-
-    vec2 minusIndex(vec2 ind){
-        return vec2(u_transformSize - 1.0, u_transformSize - 1.0) - ind;
-    }
-
     void main(void) {
-        vec2 index_xy = gl_FragCoord.xy;                                          //[0, u_transformSize)
-        vec2 nm       = index_xy - vec2(u_transformSize, u_transformSize) * 0.5;  //[-u_transformSize/2, u_transformSize/2)
-        vec2 k        = 2.0 * nm * PI / u_areaSize;
-
-        vec2 h0k      = texture2D(u_h0, index2TexturePosition(           index_xy )).xy;
-        vec2 h0minusk = texture2D(u_h0, index2TexturePosition(minusIndex(index_xy))).xy;
+        vec4 h0k_k    = texture2D(u_h0_k,  gl_FragCoord.xy / u_transformSize);
+        vec2 h0minusk = texture2D(u_h0_k, -gl_FragCoord.xy / u_transformSize).xy;
+        vec2 k        = h0k_k.zw;
+        vec2 h0k      = h0k_k.xy;
        
         float wt = omega(length(k)) * u_t;
         float coswt = cos(wt);
@@ -177,18 +175,12 @@ var FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY = `
     uniform sampler2D u_height_k;
     uniform float     u_transformSize; 
 
-    vec2 index2TexturePosition(vec2 ind){
-        return ind / u_transformSize;
-    }
-
     vec2 complexMultI(vec2 complex){
         return vec2(-complex.y, complex.x);
     }
 
     void main(void) {
-        vec2 index_xy = gl_FragCoord.xy; //[0, u_transformSize)
-
-        vec4 height_k = texture2D(u_height_k, index2TexturePosition( index_xy ));
+        vec4 height_k = texture2D(u_height_k, gl_FragCoord.xy / u_transformSize);
         vec2 hkt      = height_k.xy;
         vec2 k        = height_k.zw;
 
@@ -216,7 +208,9 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     
     attribute vec2 a_position; //[-1, 1]
 
-    varying vec3 v_position;
+    varying vec2 v_texturePosition;
+    varying vec3 v_vertexPosition;
+    varying vec2 v_position;
 
     uniform sampler2D u_height;
     uniform sampler2D u_displacement;
@@ -230,41 +224,113 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
 
     void main(void) {
         vec2 texPos = position2TexturePosition(a_position);
-        vec4 displacementVec = texture2D(u_displacement, texPos);
+        // vec4 displacementVec = texture2D(u_displacement, texPos);
 
-        float height         = length(texture2D(u_height, texPos).xy);
-        float displacement_x = length(displacementVec.xy);
-        float displacement_y = length(displacementVec.zw);
-        vec2  displacement   = vec2(displacement_x, displacement_y);
 
-        vec2 dispPos = a_position + displacement * DISPLACEMENT_CONST;
+        float height      = texture2D(u_height, texPos).x;
+        vec2 displacement = texture2D(u_displacement, texPos).xz;
+
+        // float displacement_x = length(displacementVec.xy);
+        // float displacement_y = length(displacementVec.zw);
+        // vec2  displacement   = vec2(displacement_x, displacement_y);
+
+        vec2 dispPos  = a_position + displacement * DISPLACEMENT_CONST;
         vec3 position = vec3(dispPos.x, height, dispPos.y);
 
-        v_position = vec3(texPos, 0);
-        v_position.z = height;
-        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);
+        v_texturePosition = texPos;
+        v_vertexPosition  = position;
+        v_position = a_position;
+
+        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);      
     }`
 
 
 var FRAGMENT_SHADER_SOURCE_OCEAN = `
     precision highp float;
 
-    varying vec3 v_position;
+    varying vec2 v_texturePosition;
+    varying vec3 v_vertexPosition;
+    varying vec2 v_position;
 
     uniform sampler2D u_slope;
+    uniform sampler2D u_height;
+    uniform sampler2D u_displacement;
 
-    float position2TexturePosition(float pos){
+    uniform vec3 u_cameraPosition;
+    uniform vec3 u_sunVector;
+
+    vec3 hdr (vec3 color, float exposure) {
+        return 1.0 - exp(-color * exposure);
+    }
+
+    vec2 position2TexturePosition(vec2 pos){
         return pos * 0.5 + 0.5;
     }
 
+    vec3 pos(vec2 pos){
+        vec2 texPos = position2TexturePosition(pos);
+        // vec4 displacementVec = texture2D(u_displacement, texPos);
+
+        float height         = texture2D(u_height, texPos).x;
+        vec2 displacement = texture2D(u_displacement, texPos).xz;
+
+        // float displacement_x = length(displacementVec.xy);
+        // float displacement_y = length(displacementVec.zw);
+        // vec2  displacement   = vec2(displacement_x, displacement_y);
+
+        vec2 dispPos  = pos + displacement * 0.1;
+        vec3 position = vec3(dispPos.x, height, dispPos.y);
+        return position;
+    }
+
     void main(void) {
-        vec4 slopeVec = texture2D(u_slope, v_position.xy);
+        vec3 oceanColor = vec3(0.04, 0.16, 0.47);
+        vec3 skyColor = vec3(3.2, 9.6, 12.8) * 0.05;
 
-        float slope_x = length(slopeVec.xy);
-        float slope_y = length(slopeVec.zw);
-        vec2  slope   = vec2(slope_x, slope_y);
+        vec4 slopeVec = texture2D(u_slope, v_texturePosition);
 
-        vec3 normal = vec3(-slope_x, 1, -slope_y) / length(slope);
+        float slope_x = slopeVec.x;
+        float slope_y = slopeVec.z;
+        vec2  slope   = normalize(vec2(slope_x, slope_y));
 
-        gl_FragColor = vec4(0.9 * normal, 1);
+        vec3 normal = normalize(vec3(-slope.x, 1, -slope.y));
+        // vec3 normal = normalize(vec3(slope_x, 0.2, slope_y));
+
+     /*   float delta = 1. / 512.;
+
+        vec3 center = pos(v_position);
+        vec3 top    = pos(v_position + vec2(0     , delta ));
+        vec3 bot    = pos(v_position - vec2(0     , delta ));
+        vec3 left   = pos(v_position - vec2(delta , 0     ));
+        vec3 right  = pos(v_position + vec2(delta , 0     ));
+
+        vec3 topVector = top - center;
+        vec3 botVector = bot - center;
+        vec3 leftVector = left - center;
+        vec3 rightVector = right - center;
+
+        vec3 vectorrt = cross(rightVector, topVector);
+        vec3 vectortl = cross(topVector, leftVector);
+        vec3 vectorlb = cross(leftVector, botVector);
+        vec3 vectorbr = cross(botVector, rightVector); 
+
+        vec3 normal2 = normalize(vectorbr + vectorlb + vectortl + vectorrt);
+
+*/
+
+        vec3 view = normalize(u_cameraPosition - v_vertexPosition);
+        float fresnel = 0.02 + 0.98 * pow(1.0 - dot(normal, view), 5.0);
+        vec3 sky = fresnel * skyColor;
+
+        float diffuse = clamp(dot(normal, normalize(u_sunVector)), 0.0, 1.0);
+        vec3 water = (1.0 - fresnel) * oceanColor * skyColor * diffuse;
+
+        vec3 color = sky + water;
+
+        vec4 displacementVec = texture2D(u_displacement, v_texturePosition);
+        float displacement_x = length(displacementVec.xy);
+        float displacement_y = length(displacementVec.zw);
+        vec2  displacement   = normalize(vec2(displacement_x, displacement_y));
+
+        gl_FragColor = vec4(hdr(color, 0.35), 1);
     }`

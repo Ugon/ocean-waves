@@ -74,40 +74,17 @@
         mouseDown = false;
     });
 
-
-
-
-    camera.changeAzimuth(100);
-    var viewMatrix = camera.getViewMatrix();
-    
-
-    // var viewMatrix = mat4.create();
-    // var distanceVec = vec3.create();
-    // var scaleVec = vec3.create();
-
-
-    // mat4.perspective(projectonMatrix, (60 / 180) * Math.PI, window.innerWidth/window.innerHeight, 0, 10000);
-
-    // vec3.set(distanceVec, 0, 0, -2.5);
-    // vec3.set(scaleVec, 0.8, 0.8, 0.8);
-
-    // mat4.scale(viewMatrix, viewMatrix, scaleVec);
-    // mat4.translate(viewMatrix, viewMatrix, distanceVec);
-    // mat4.rotateX(viewMatrix, viewMatrix, Math.PI/4);
-    // mat4.rotateY(viewMatrix, viewMatrix, Math.PI/3);
-
-    // console.log(viewMatrix);
-
+    overlay.addEventListener('wheel', function(event) {
+        camera.changeDistance(event.deltaY * WHEEL_SENSIVITY);
+    });
+  
+    onWindowResize();
 
     var time = 0;
-
-    onWindowResize();
     var nextFrame = function(){
         time += TIME_STEP;
-        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix);
+        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix, camera.getPosition());
         requestAnimationFrame(nextFrame);
     }
     nextFrame();
-
-    // gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferFullscreen);
 </script>
