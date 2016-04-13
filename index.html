@@ -4,31 +4,42 @@
     <meta http-equiv="content-type" content="text/html">
 
     <link href="style.css" rel="stylesheet" type="text/css">
+
+    <script type="text/javascript" src="lib/dat.gui.js"></script>
+    <script type="text/javascript" src="lib/gl-matrix.js"></script>
+    
+    <script type="text/javascript" src="parameters.js"></script>
+    
+    <script type="text/javascript" src="gui.js"></script>
+    <script type="text/javascript" src="utils.js"></script>
+    <script type="text/javascript" src="camera.js"></script>
+    <script type="text/javascript" src="shaders.js"></script>
+    <script type="text/javascript" src="renderer.js"></script>
+    <script type="text/javascript" src="webgl-boilerplate.js"></script>
 </head>
 <body>
+    <div id="gui"></div>
     <div id="overlay"></div>
     <canvas id="canvas"></canvas>
 </body>
 
-<script type="text/javascript" src='shaders.js'></script>
-<script type="text/javascript" src='lib/gl-matrix.js'></script>
-<script type="text/javascript" src="parameters.js"></script>
-<script type="text/javascript" src="utils.js"></script>
-<script type="text/javascript" src="webgl-boilerplate.js"></script>
-<script type="text/javascript" src="camera.js"></script>
-<script type="text/javascript" src="renderer.js"></script>
+
 
 <script>
     var canvas     = document.getElementById('canvas');
     var overlayDiv = document.getElementById('overlay');
+    var guiDiv     = document.getElementById('gui');
 
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    var renderer        = new Renderer(canvas);
+    var gui             = new Gui(guiDiv);
+    var params          = gui.params;
+    var renderer        = new Renderer(canvas, params);
     var camera          = new Camera();
     var projectonMatrix = mat4.create();
-  
+
+
     /*****************************************************************/
     /*********************ADD EVENT LISTENERS*************************/
     /*****************************************************************/
@@ -57,13 +68,15 @@
         lastMouseY = event.clientY;
     });
 
+
     overlay.addEventListener('mousemove', function(event) {
+        var mouseSpeed = PARAM_CALC_MOUSE_SPEED(params[PARAM_NAME_MOUSE_SPEED])
         if (mouseDown) {
             var mouseX = event.clientX;
             var mouseY = event.clientY;
         
-            camera.changeAzimuth((mouseX - lastMouseX) * MOUSE_SENSITIVITY);
-            camera.changeElevation((mouseY - lastMouseY) * MOUSE_SENSITIVITY);
+            camera.changeAzimuth(  (mouseX - lastMouseX) * mouseSpeed);
+            camera.changeElevation((mouseY - lastMouseY) * mouseSpeed);
         
             lastMouseX = mouseX;
             lastMouseY = mouseY;
@@ -74,16 +87,23 @@
         mouseDown = false;
     });
 
-    overlay.addEventListener('wheel', function(event) {
-        camera.changeDistance(event.deltaY * WHEEL_SENSIVITY);
-    });
+    var fun = function(event) {
+        var wheelSpeed = PARAM_CALC_WHEEL_SPEED(params[PARAM_NAME_WHEEL_SPEED]);
+        camera.changeDistance(event.deltaY * wheelSpeed);
+    };
+
+    overlay.addEventListener('wheel', fun);
   
     onWindowResize();
 
+
+    /*****************************************************************/
+    /***************************ANIMATION*****************************/
+    /*****************************************************************/
     var time = 0;
     var nextFrame = function(){
-        time += TIME_STEP;
-        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix, camera.getPosition());
+        time += PARAM_CALC_TIME_STEP(params[PARAM_NAME_TIME_STEP]);
+        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix, camera.getPosition(), params.getChanges());
         requestAnimationFrame(nextFrame);
     }
     nextFrame();

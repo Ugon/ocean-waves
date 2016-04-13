@@ -51,7 +51,7 @@ var buildTexture = function(gl, unit, target, level, internalformat, width, heig
     var texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(target, 0, gl.RGBA, TRANSFORM_SIZE, TRANSFORM_SIZE, 0, gl.RGBA, gl.FLOAT, pixels);
+    gl.texImage2D(target, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.FLOAT, pixels);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, texture_wrap_s);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, texture_wrap_t);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, texture_min_filter);
