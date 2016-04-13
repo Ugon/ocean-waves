@@ -455,7 +455,7 @@ var Renderer = function(canvas, params) {
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
         gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], cameraPosition);
-        gl.uniform3f(programOcean.uniformLocations['u_sunVector'], -100, 1, 0);
+        gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 100, 20, 0);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);

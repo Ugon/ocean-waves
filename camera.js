@@ -38,9 +38,10 @@ var Camera = function () {
         mat4.rotateX(viewMatrix, viewMatrix, elevation);
         mat4.rotateY(viewMatrix, viewMatrix, azimuth);
 
-    	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(azimuth);
+    	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(Math.PI / 2 + azimuth);
         y = distance * Math.cos(Math.PI / 2 - elevation);  
-        z = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(azimuth);
+        z = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(Math.PI / 2 + azimuth);
+
         vec3.set(positionVec, x, y, z);
     }
 

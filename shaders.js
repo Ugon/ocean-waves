@@ -187,11 +187,10 @@ var FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY = `
 var VERTEX_SHADER_SOURCE_OCEAN = `
     precision highp float;
     
-    attribute vec2 a_position; //[-1, 1]
+    const float nSnell = 1.33;
 
-    varying vec2 v_texturePosition;
-    varying vec3 v_vertexPosition;
-    varying vec2 v_position;
+    attribute vec2 a_position; //[-1, 1]   
+
     varying vec3 v_color;
 
     uniform sampler2D u_height;
@@ -202,88 +201,93 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform mat4 u_viewMatrix;
 
     uniform vec3 u_cameraPosition;
-    uniform vec3 u_sunVector;
+    uniform vec3 u_sunPosition;
 
     uniform float u_displacementConst;
     uniform float u_scaleHorizontal;
-    uniform float u_scaleVertical; 
+    uniform float u_scaleVertical;
     
-    vec2 position2TexturePosition(vec2 pos){
-        return pos * 0.5 + 0.5;
-    }
-
     vec3 hdr (vec3 color, float exposure) {
         return 1.0 - exp(-color * exposure);
     }
 
+    float calculateFresnel(vec3 normal, vec3 viewDirection) {
+        float thetaICos = abs(dot(normal, viewDirection));
+        float thetaI    = acos(thetaICos);
+        float thetaTSin = sin(thetaI / nSnell);
+        float thetaT    = asin(thetaTSin);
+        
+        float fs = sin(thetaT - thetaI) / sin(thetaT + thetaI);
+        float ft = tan(thetaT - thetaI) / tan(thetaT - thetaI);
+
+        return clamp(0.5 * (fs * fs + ft * ft), 0., 1.);
+    }
+
     void main(void) {
-        vec2 texPos = position2TexturePosition(a_position);
+        vec2 texPos = a_position * 0.5 + 0.5;
 
         float height      = texture2D(u_height, texPos).x;
         vec2 displacement = texture2D(u_displacement, texPos).xz;
+        vec2 slope        = texture2D(u_slope, texPos).xz; // * 5.;
 
         vec2 dispPos  = a_position + displacement * u_displacementConst;
         vec3 position = vec3(
             u_scaleHorizontal * dispPos.x,
             u_scaleVertical   * height,
             u_scaleHorizontal * dispPos.y);
+        vec3 viewPosition = (u_viewMatrix * vec4(position, 1)).xyz;
 
-        v_texturePosition = texPos;
-        v_vertexPosition  = position;
-        v_position = a_position;
+        vec3 oceanColor = vec3(0.04, 0.16, 0.47);
+        vec3 skyColor = vec3(3.2, 9.6, 12.8) * 0.2;
+        vec3 sunColor = vec3(1., 1., 0.);
+
+        
+        vec3 normal              = normalize(vec3(-slope.x, 1, -slope.y));
+        vec3 viewDirection       = normalize(u_cameraPosition - position);
+        vec3 incidentDirection   = normalize(position - u_sunPosition);
+        vec3 reflectionDirection = normalize(reflect(incidentDirection, normal));
+
+        float fresnelReflectivity = calculateFresnel(normal, viewDirection) * 0.1;
+
+        vec3 color = fresnelReflectivity * skyColor + (1. - fresnelReflectivity) * oceanColor;
+
+        // vec3 viewNormal = normalize((u_viewMatrix * vec4(normal, 1)).xyz);
+        // vec3 viewVector = normalize((u_viewMatrix * vec4(u_cameraPosition, 1)).xyz - viewPosition);
+        // vec3 lightVector = normalize((u_viewMatrix * vec4(u_sunPosition, 1)).xyz - viewPosition);
+        // vec3 halfVector = normalize(viewVector + lightVector);
+        
+        
+        vec3 viewVector  = normalize(u_cameraPosition - position);
+        vec3 lightVector = normalize(u_sunPosition - position);
+        vec3 halfVector  = normalize(viewVector + lightVector);
+        
+        
+        float facing = dot(normal, lightVector);
+        
+        if(facing > 0.){
+            float mod = max(pow(dot(normal, halfVector), 80.0), 0.01);
+            color += mod;
+        }
 
 
+        // vec3 sky = fresnelReflectivity * skyColor;
 
-        vec3 oceanColor = vec3(0.04, 0.16, 0.47) * 2.;
-        vec3 skyColor = vec3(3.2, 9.6, 12.8);
+        // float diffuse = clamp(dot(normal, normalize(u_sunPosition)), 0.0, 1.0);
+        // vec3 water = (1.0 - fresnelReflectivity) * oceanColor * skyColor * diffuse;
 
-        vec2 slope = texture2D(u_slope, v_texturePosition).xz; // * 5.;
+        // vec3 color = sky + water;
 
-        vec3 normal = normalize(vec3(-slope.x, 1, -slope.y));
-
-        vec3 view = normalize(u_cameraPosition - v_vertexPosition);
-        float fresnel = 0.02 + 0.98 * pow(1.0 - dot(normal, view), 5.0);
-        vec3 sky = fresnel * skyColor;
-
-        float diffuse = clamp(dot(normal, normalize(u_sunVector)), 0.0, 1.0);
-        vec3 water = (1.0 - fresnel) * oceanColor * skyColor * diffuse;
-
-        vec3 color = sky + water;
-
-        color = hdr(color, 0.35);
-
-
-
-
-
-
+        color = hdr(color, 0.5);
 
         v_color = color;
-        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);      
+        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);
     }`
 
 
 var FRAGMENT_SHADER_SOURCE_OCEAN = `
     precision highp float;
 
-    varying vec2 v_texturePosition;
-    varying vec3 v_vertexPosition;
-    varying vec2 v_position;
     varying vec3 v_color;
-
-    uniform sampler2D u_slope;
-    uniform sampler2D u_height;
-    uniform sampler2D u_displacement;
-
-    uniform vec3 u_cameraPosition;
-    uniform vec3 u_sunVector;
-
-
-
-
-    vec2 position2TexturePosition(vec2 pos){
-        return pos * 0.5 + 0.5;
-    }
 
     void main(void) {
 
@@ -292,6 +296,21 @@ var FRAGMENT_SHADER_SOURCE_OCEAN = `
     }`
 
 
+/*
+vec3 v = (u_viewMatrix * vec4(position, 1.0)).xyz;
+vec3 lightVector = normalize((u_viewMatrix * vec4(u_sunPosition, 1.0)).xyz - v);
+// vec3 lightVector = normalize((u_viewMatrix * vec4(u_sunPosition, 1.0)).xyz - v);
+
+        float facing = dot(normal, (u_viewMatrix * vec4(lightVector, 0)).xyz);
+        // float facing = dot(normal, lightVector);
+        if(facing > 0.) {
+            vec3 halfAngleVector = normalize(lightVector + normalize(-v));
+            // float mod = max(pow(dot(normal, normalize(u_sunPosition - position)), 3.0), 0.0);
+            float mod = max(pow(dot(normal, halfAngleVector), 120.0), 0.01);
+            // color += vec3(mod, 0, 0);
+            color += mod;
+        }
+        */
 /*
 
 
@@ -326,5 +345,30 @@ vec3 vectorlb = cross(leftVector, botVector);
 vec3 vectorbr = cross(botVector, rightVector); 
 
 vec3 normal2 = normalize(vectorbr + vectorlb + vectortl + vectorrt);
+
+
+
+        vec3 oceanColor = vec3(0.04, 0.16, 0.47) * 2.;
+        vec3 skyColor = vec3(3.2, 9.6, 12.8);
+
+        vec2 slope = texture2D(u_slope, texPos).xz; // * 5.;
+
+        vec3 normal = normalize(vec3(-slope.x, 1, -slope.y));
+
+        vec3 view = normalize(u_cameraPosition - position);
+
+        vec3 incident = normalize(-u_sunVector);
+
+        float fresnel = 1.0 - clamp(dot(normal, view), 0., 1.);
+        // float fresnel = 0.02 + 0.98 * pow(1.0 - dot(normal, view), 5.0);
+        vec3 sky = fresnel * skyColor;
+
+        float diffuse = clamp(dot(normal, normalize(u_sunVector)), 0.0, 1.0);
+        vec3 water = (1.0 - fresnel) * oceanColor * skyColor * diffuse;
+
+        vec3 color = sky + water;
+
+        color = hdr(color, 0.35);
+
 
 */
