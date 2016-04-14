@@ -185,8 +185,8 @@ var FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY = `
 /**************************OCEAN SHADERS**************************/
 /*****************************************************************/
 var VERTEX_SHADER_SOURCE_OCEAN = `
-    #define NORMAL_PRECISE
-    #define NORMAL_FINITE_DIFFERENCE
+    // #define NORMAL_PRECISE
+    // #define NORMAL_FINITE_DIFFERENCE
     precision highp float;
     
     const float nSnell = 1.33;
@@ -218,7 +218,7 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform float u_specularBiasExp;
     uniform float u_specularBiasLin;
     uniform float u_diffuseBiasExp;
-    uniform float u_DiffuseBiasLin;
+    uniform float u_diffuseBiasLin;
 
     
     vec2 texPos(vec2 position){
@@ -306,7 +306,7 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
         
         float fresnelReflectivity  = pow(calculateFresnel(normal, viewVector), u_fresnelBiasExp) * u_fresnelBiasLin;
         float specularReflectivity = max(pow(dot(normal, halfVector), u_specularBiasExp) * u_specularBiasLin, 0.01);
-        float diffuse              = clamp(pow(normal.y, u_diffuseBiasExp) * u_DiffuseBiasLin, 0., 1.);
+        float diffuse              = clamp(pow(normal.y, u_diffuseBiasExp) * u_diffuseBiasLin, 0., 1.);
 
         vec3 sky   = u_skyColor   * fresnelReflectivity;
         vec3 ocean = u_oceanColor * (1. - fresnelReflectivity) * diffuse;

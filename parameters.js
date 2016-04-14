@@ -19,6 +19,12 @@ var PARAM_NAME_TRANSFORM_SIZE = 'transformSize';
 var PARAM_INIT_TRANSFORM_SIZE = 512;
 var PARAM_POSS_TRANSFORM_SIZE = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024];
 
+var PARAM_NAME_NORMAL_PRECISE = 'normalPrecise';
+var PARAM_INIT_NORMAL_PRECISE = true;
+
+var PARAM_NAME_NORMAL_FIN_DIFF = 'normalFinite';
+var PARAM_INIT_NORMAL_FIN_DIFF = true;
+
 var PARAM_NAME_PHILLIPS_CONST = 'phillipsConst';
 var PARAM_INIT_PHILLIPS_CONST = 0.2;
 var PARAM_CALC_PHILLIPS_CONST = function(value){
@@ -73,9 +79,9 @@ var PARAM_CALC_SCALE_VERTICAL = function(value){
 	return (value + 1) * 2;
 };
 
-var PARAM_NAME_COLOR_BOTTOM = 'bottom';
-var PARAM_INIT_COLOR_BOTTOM = 0.1;
-var PARAM_CALC_COLOR_BOTTOM = function(value){
+var PARAM_NAME_COLOR_OCEAN = 'ocean';
+var PARAM_INIT_COLOR_OCEAN = 0.1;
+var PARAM_CALC_COLOR_OCEAN = function(value){
 	return value;
 };
 
@@ -90,6 +96,42 @@ var PARAM_INIT_COLOR_SUN = 0.1;
 var PARAM_CALC_COLOR_SUN = function(value){
 	return value;
 };
+
+var PARAM_NAME_FRESNEL_BIAS_EXP = 'fresnelBiasExp';
+var PARAM_INIT_FRESNEL_BIAS_EXP = 0.7;
+var PARAM_CALC_FRESNEL_BIAS_EXP = function(value){
+	return 10 * value;
+}
+
+var PARAM_NAME_FRESNEL_BIAS_LIN = 'fresnelBiasLin';
+var PARAM_INIT_FRESNEL_BIAS_LIN = 0.25;
+var PARAM_CALC_FRESNEL_BIAS_LIN = function(value){
+	return Math.pow(8, value);
+}
+
+var PARAM_NAME_SEPCULAR_BIAS_EXP = 'specularBiasExp';
+var PARAM_INIT_SEPCULAR_BIAS_EXP = 0.3;
+var PARAM_CALC_SEPCULAR_BIAS_EXP = function(value){
+	return Math.pow(10000, (value * 0.75 + 0.25));
+}
+
+var PARAM_NAME_SEPCULAR_BIAS_LIN = 'specularBiasLin';
+var PARAM_INIT_SEPCULAR_BIAS_LIN = 0.5;
+var PARAM_CALC_SEPCULAR_BIAS_LIN = function(value){
+	return value * 5;
+}
+
+var PARAM_NAME_DIFFUSE_BIAS_EXP = 'diffuseBiasExp';
+var PARAM_INIT_DIFFUSE_BIAS_EXP = 0.5;
+var PARAM_CALC_DIFFUSE_BIAS_EXP = function(value){
+	return Math.pow(50, value);
+}
+
+var PARAM_NAME_DIFFUSE_BIAS_LIN = 'diffuseBiasLin';
+var PARAM_INIT_DIFFUSE_BIAS_LIN = 0.5;
+var PARAM_CALC_DIFFUSE_BIAS_LIN = function(value){
+	return Math.pow(4, value) - 1;
+}
 
 var PARAM_NAME_SUN_X = 'sunX';
 var PARAM_INIT_SUN_X = 0.1;
@@ -143,43 +185,6 @@ var PARAM_CALC_WHEEL_SPEED = function(value){
 
 
 
-
-
-
-/////////////////INIT////////////////
-var PHILLIPS_CONST = 0.001;
-var SMALL_WAVES_SUPPRESS;
-
-/////////////////DYNAMIC////////////////
-
-var TIME_STEP = 0.01;
-
-var AREA_SIZE_CALC = 15;
-var AREA_SIZE_DISP;
-
-
-var DISPLACEMENT_CONST = 0.1;
-var SUN_POSITION;
-
-
-var BOTTOM_COLOR;
-var SKY_COLOR;
-var SUN_COLOR;
-
-
-/////////////////VISUAL////////////////
-var WIND_X = 10000;
-var WIND_Y = 10000;
-
-
-
-
-
-
-/////////////////INPUT////////////////
-
-MOUSE_SENSITIVITY = 0.001;
-WHEEL_SENSIVITY = 0.01;
 
 
 

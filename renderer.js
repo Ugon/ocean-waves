@@ -7,8 +7,17 @@ var Renderer = function(canvas, params) {
     /*****************************************************************/
     /************************SHADER SOURCES***************************/
     /*****************************************************************/
-    var vertexShaderSourcePassPosition = VERTEX_SHADER_SOURCE_DO_NOTHING;
-    var vertexShaderSourceOcean        = VERTEX_SHADER_SOURCE_OCEAN;
+    var vertexShaderSourcePassPosition =
+        VERTEX_SHADER_SOURCE_DO_NOTHING;
+    
+    var vertexShaderSourceOceanPrec = 
+        '#define NORMAL_PRECISE\n' + VERTEX_SHADER_SOURCE_OCEAN;
+
+    var vertexShaderSourceOceanFin = 
+        '#define NORMAL_FINITE_DIFFERENCE\n' + VERTEX_SHADER_SOURCE_OCEAN;
+
+    var vertexShaderSourceOceanPrecFin = 
+        '#define NORMAL_PRECISE\n#define NORMAL_FINITE_DIFFERENCE\n' + VERTEX_SHADER_SOURCE_OCEAN;
 
     var fragmentShaderSourceFFT1Rows = 
         '#define ROWS\n' + FRAGMENT_SHADER_SOURCE_FFT;    
@@ -17,7 +26,7 @@ var Renderer = function(canvas, params) {
         FRAGMENT_SHADER_SOURCE_FFT;
     
     var fragmentShaderSourceFFT2Rows = 
-        '#define ROWS\n #define DOUBLE\n' + FRAGMENT_SHADER_SOURCE_FFT;
+        '#define ROWS\n#define DOUBLE\n' + FRAGMENT_SHADER_SOURCE_FFT;
     
     var fragmentShaderSourceFFT2Cols = 
         '#define DOUBLE\n' + FRAGMENT_SHADER_SOURCE_FFT;        
@@ -37,12 +46,16 @@ var Renderer = function(canvas, params) {
     var fragmentShaderSourceOcean = 
         FRAGMENT_SHADER_SOURCE_OCEAN;
 
+    
+
 
     /*****************************************************************/
     /*************************BUILD SHADERS***************************/
     /*****************************************************************/
     var vertexShaderPassPosition                    = buildVertexShader(gl, vertexShaderSourcePassPosition);
-    var vertexShaderOcean                           = buildVertexShader(gl, vertexShaderSourceOcean);
+    var vertexShaderOceanPrecFin                    = buildVertexShader(gl, vertexShaderSourceOceanPrecFin);
+    var vertexShaderOceanPrec                       = buildVertexShader(gl, vertexShaderSourceOceanPrec);
+    var vertexShaderOceanFin                        = buildVertexShader(gl, vertexShaderSourceOceanFin);
     
     var fragmentShaderHeightInitInFrequency         = buildFragmentShader(gl, fragmentShaderSourceHeightInitInFrequency);
     var fragmentShaderHeightAfterTInFrequency       = buildFragmentShader(gl, fragmentShaderSourceheightAfterTInFrequency);
@@ -54,6 +67,11 @@ var Renderer = function(canvas, params) {
     var fragmentShaderFFT2Cols                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Cols);
     var fragmentShaderOcean                         = buildFragmentShader(gl, fragmentShaderSourceOcean);
 
+    var chooseOceanVertexShader = function(precise, finiteDifference){
+        if      (precise && finiteDifference) return vertexShaderOceanPrecFin;
+        else if (precise                    ) return vertexShaderOceanPrec;
+        else if (           finiteDifference) return vertexShaderOceanFin;
+    }
 
     /*****************************************************************/
     /*************************INIT TEXTURES***************************/
@@ -180,16 +198,30 @@ var Renderer = function(canvas, params) {
     gl.useProgram(programFFT2Cols.program);
     gl.uniform1f(programFFT2Cols.uniformLocations['u_transformSize'], transformSize);
 
-    var programOcean = buildProgramData(gl, vertexShaderOcean, fragmentShaderOcean, 
-        { 'a_position': INDEX_BUFFER_OCEAN });
-    gl.useProgram(programOcean.program);
-    gl.uniform1i(programOcean.uniformLocations['u_height'], UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
-    gl.uniform1i(programOcean.uniformLocations['u_displacement'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
-    gl.uniform1i(programOcean.uniformLocations['u_slope'], UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
-    gl.uniform1f(programOcean.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
-    gl.uniform1f(programOcean.uniformLocations['u_scaleHorizontal'], PARAM_CALC_SCALE_HORIZONTAL(params[PARAM_NAME_SCALE_HORIZONTAL]));
-    gl.uniform1f(programOcean.uniformLocations['u_scaleVertical'], PARAM_CALC_SCALE_VERTICAL(params[PARAM_NAME_SCALE_VERTICAL]));
-
+    var buildOceanProgram = function(vertexShader){
+        var programResult = buildProgramData(gl, vertexShader, fragmentShaderOcean, 
+            { 'a_position': INDEX_BUFFER_OCEAN });
+        gl.useProgram(programResult.program);
+        gl.uniform1i(programResult.uniformLocations['u_height'],       UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
+        gl.uniform1i(programResult.uniformLocations['u_displacement'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
+        gl.uniform1i(programResult.uniformLocations['u_slope'],        UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
+    
+        gl.uniform1f(programResult.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
+        gl.uniform1f(programResult.uniformLocations['u_scaleHorizontal'],   PARAM_CALC_SCALE_HORIZONTAL(  params[PARAM_NAME_SCALE_HORIZONTAL]));
+        gl.uniform1f(programResult.uniformLocations['u_scaleVertical'],     PARAM_CALC_SCALE_VERTICAL(    params[PARAM_NAME_SCALE_VERTICAL]));
+    
+        gl.uniform1f(programResult.uniformLocations['u_fresnelBiasExp'],  PARAM_CALC_FRESNEL_BIAS_EXP( params[PARAM_NAME_FRESNEL_BIAS_EXP]));
+        gl.uniform1f(programResult.uniformLocations['u_fresnelBiasLin'],  PARAM_CALC_FRESNEL_BIAS_LIN( params[PARAM_NAME_FRESNEL_BIAS_LIN]));
+        gl.uniform1f(programResult.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(params[PARAM_NAME_SEPCULAR_BIAS_EXP]));
+        gl.uniform1f(programResult.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(params[PARAM_NAME_SEPCULAR_BIAS_LIN]));
+        gl.uniform1f(programResult.uniformLocations['u_diffuseBiasExp'],  PARAM_CALC_DIFFUSE_BIAS_EXP( params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
+        gl.uniform1f(programResult.uniformLocations['u_diffuseBiasLin'],  PARAM_CALC_DIFFUSE_BIAS_LIN( params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
+        
+        return programResult;
+    }
+    
+    var programOcean = buildOceanProgram(
+        chooseOceanVertexShader(params[PARAM_NAME_NORMAL_PRECISE], params[PARAM_NAME_NORMAL_FIN_DIFF]));
 
     /*****************************************************************/
     /**********************INIT VERTEX BUFFERS************************/
@@ -386,8 +418,8 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programOcean.uniformLocations['u_scaleVertical'], PARAM_CALC_SCALE_VERTICAL(value));
                     break;
                 
-                case PARAM_NAME_COLOR_BOTTOM:
-                    console.log(PARAM_CALC_COLOR_BOTTOM(value));
+                case PARAM_NAME_COLOR_OCEAN:
+                    console.log(PARAM_CALC_COLOR_OCEAN(value));
                     break;
                 
                 case PARAM_NAME_COLOR_SKY:
@@ -397,7 +429,37 @@ var Renderer = function(canvas, params) {
                 case PARAM_NAME_COLOR_SUN:
                     console.log(PARAM_CALC_COLOR_SUN(value));
                     break;
-                
+
+                case PARAM_NAME_FRESNEL_BIAS_EXP:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'], PARAM_CALC_FRESNEL_BIAS_EXP(value));
+                    break;
+
+                case PARAM_NAME_FRESNEL_BIAS_LIN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'], PARAM_CALC_FRESNEL_BIAS_LIN(value));
+                    break;
+
+                case PARAM_NAME_SEPCULAR_BIAS_EXP:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(value));
+                    break;
+
+                case PARAM_NAME_SEPCULAR_BIAS_LIN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(value));
+                    break;
+
+                case PARAM_NAME_DIFFUSE_BIAS_EXP:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'], PARAM_CALC_DIFFUSE_BIAS_EXP(value));
+                    break;
+
+                case PARAM_NAME_DIFFUSE_BIAS_LIN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'], PARAM_CALC_DIFFUSE_BIAS_LIN(value));
+                    break;
+
                 case PARAM_NAME_SUN_X:
                     console.log(PARAM_CALC_SUN_X(value));
                     break;
@@ -409,6 +471,13 @@ var Renderer = function(canvas, params) {
                 case PARAM_NAME_SUN_Z:
                     console.log(PARAM_CALC_SUN_Z(value));
                     break;
+
+                case PARAM_NAME_NORMAL_PRECISE:
+                case PARAM_NAME_NORMAL_FIN_DIFF:
+                    programOcean = buildOceanProgram( 
+                        chooseOceanVertexShader(params[PARAM_NAME_NORMAL_PRECISE], params[PARAM_NAME_NORMAL_FIN_DIFF]));
+                    break;
+
                             
             }
 
@@ -461,13 +530,6 @@ var Renderer = function(canvas, params) {
 
         gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], cameraPosition);
         gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 0, 20, -100);
-
-        gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'] , 4);
-        gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'] , 2);
-        gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], 100);
-        gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], 1);
-        gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'] , 10);
-        gl.uniform1f(programOcean.uniformLocations['u_DiffuseBiasLin'] , 1);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);

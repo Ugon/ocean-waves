@@ -15,9 +15,20 @@ var Gui = function(guiDiv){
 	params[PARAM_NAME_SCALE_HORIZONTAL]    = PARAM_INIT_SCALE_HORIZONTAL;
 	params[PARAM_NAME_SCALE_VERTICAL]      = PARAM_INIT_SCALE_VERTICAL;
 
-	params[PARAM_NAME_COLOR_BOTTOM]        = PARAM_INIT_COLOR_BOTTOM;
+	params[PARAM_NAME_COLOR_OCEAN]         = PARAM_INIT_COLOR_OCEAN;
 	params[PARAM_NAME_COLOR_SKY]           = PARAM_INIT_COLOR_SKY;
 	params[PARAM_NAME_COLOR_SUN]           = PARAM_INIT_COLOR_SUN;
+
+    params[PARAM_NAME_FRESNEL_BIAS_EXP]    = PARAM_INIT_FRESNEL_BIAS_EXP;
+    params[PARAM_NAME_FRESNEL_BIAS_LIN]    = PARAM_INIT_FRESNEL_BIAS_LIN;
+    params[PARAM_NAME_SEPCULAR_BIAS_EXP]   = PARAM_INIT_SEPCULAR_BIAS_EXP;
+    params[PARAM_NAME_SEPCULAR_BIAS_LIN]   = PARAM_INIT_SEPCULAR_BIAS_LIN;
+    params[PARAM_NAME_DIFFUSE_BIAS_EXP]    = PARAM_INIT_DIFFUSE_BIAS_EXP;
+    params[PARAM_NAME_DIFFUSE_BIAS_LIN]    = PARAM_INIT_DIFFUSE_BIAS_LIN;
+
+    params[PARAM_NAME_NORMAL_PRECISE]      = PARAM_INIT_NORMAL_PRECISE;
+    params[PARAM_NAME_NORMAL_FIN_DIFF]     = PARAM_INIT_NORMAL_FIN_DIFF;
+
 	params[PARAM_NAME_SUN_X]               = PARAM_INIT_SUN_X;
 	params[PARAM_NAME_SUN_Y]               = PARAM_INIT_SUN_Y;
 	params[PARAM_NAME_SUN_Z]               = PARAM_INIT_SUN_Z;
@@ -60,10 +71,17 @@ var Gui = function(guiDiv){
     conditionsParams.add(params, PARAM_NAME_SCALE_HORIZONTAL , 0, 1);
     conditionsParams.add(params, PARAM_NAME_SCALE_VERTICAL   , 0, 1);
 
-    colorParams.addColor(params, PARAM_NAME_COLOR_BOTTOM , 0, 1);
-    colorParams.addColor(params, PARAM_NAME_COLOR_SKY    , 0, 1);
-    colorParams.addColor(params, PARAM_NAME_COLOR_SUN    , 0, 1);
-
+    colorParams.addColor(params, PARAM_NAME_COLOR_OCEAN , 0, 1);
+    colorParams.addColor(params, PARAM_NAME_COLOR_SKY   , 0, 1);
+    colorParams.addColor(params, PARAM_NAME_COLOR_SUN   , 0, 1);
+    
+    colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_EXP  , 0, 1);
+    colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_LIN  , 0, 1);
+    colorParams.add(params, PARAM_NAME_SEPCULAR_BIAS_EXP , 0, 1);
+    colorParams.add(params, PARAM_NAME_SEPCULAR_BIAS_LIN , 0, 1);
+    colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_EXP  , 0, 1);
+    colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_LIN  , 0, 1);
+    
     colorParams.add(params, PARAM_NAME_SUN_X , 0, 1);
     colorParams.add(params, PARAM_NAME_SUN_Y , 0, 1);
     colorParams.add(params, PARAM_NAME_SUN_Z , 0, 1);
@@ -71,6 +89,10 @@ var Gui = function(guiDiv){
     controlParams.add(params, PARAM_NAME_MOUSE_SPEED , 0, 1);
     controlParams.add(params, PARAM_NAME_WHEEL_SPEED , 0, 1);  
 
+    var normalPrecCtrl = colorParams.add(params, PARAM_NAME_NORMAL_PRECISE).listen();
+    var normalFinCtrl  = colorParams.add(params, PARAM_NAME_NORMAL_FIN_DIFF).listen();
+
+    //set changed
     var folders = gui.__folders;
     for(var folderInd in folders){
         var controllers = folders[folderInd].__controllers
@@ -89,6 +111,7 @@ var Gui = function(guiDiv){
         }
     }
 
+    //mutex fft size
     for(var sizeInd in PARAM_POSS_TRANSFORM_SIZE){
     	var size = PARAM_POSS_TRANSFORM_SIZE[sizeInd];
     	params[size] = false;
@@ -109,6 +132,25 @@ var Gui = function(guiDiv){
         ctrl.onChange(onChangeFun);
     }
     params[PARAM_INIT_TRANSFORM_SIZE] = true;
+
+    //validate normal
+    normalPrecCtrl.onChange(function(){
+        if (!params[PARAM_NAME_NORMAL_FIN_DIFF]){
+            params[PARAM_NAME_NORMAL_PRECISE] = true;
+        } else {
+            console.log('prec');
+            params.changed[PARAM_NAME_NORMAL_PRECISE] = true;
+        }
+    });
+
+    normalFinCtrl.onChange(function(){
+        if (!params[PARAM_NAME_NORMAL_PRECISE]){
+            params[PARAM_NAME_NORMAL_FIN_DIFF] = true;
+        } else {
+            console.log('fin');
+            params.changed[PARAM_NAME_NORMAL_FIN_DIFF] = true;
+        }
+    });
 
     // spectrumParams.open();
     // conditionsParams.open();
