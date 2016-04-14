@@ -202,9 +202,10 @@ var Renderer = function(canvas, params) {
         var programResult = buildProgramData(gl, vertexShader, fragmentShaderOcean, 
             { 'a_position': INDEX_BUFFER_OCEAN });
         gl.useProgram(programResult.program);
-        gl.uniform1i(programResult.uniformLocations['u_height'],       UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
-        gl.uniform1i(programResult.uniformLocations['u_displacement'], UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
-        gl.uniform1i(programResult.uniformLocations['u_slope'],        UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
+        gl.uniform1f(programResult.uniformLocations['u_transformSize'], transformSize);
+        gl.uniform1i(programResult.uniformLocations['u_height'],        UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
+        gl.uniform1i(programResult.uniformLocations['u_displacement'],  UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
+        gl.uniform1i(programResult.uniformLocations['u_slope'],         UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
     
         gl.uniform1f(programResult.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
         gl.uniform1f(programResult.uniformLocations['u_scaleHorizontal'],   PARAM_CALC_SCALE_HORIZONTAL(  params[PARAM_NAME_SCALE_HORIZONTAL]));
@@ -237,29 +238,35 @@ var Renderer = function(canvas, params) {
     var vertexBufferArrayOcean;
     var vertexNumberOcean;
 
-    var buildVertexOceanBuffer = function(){
+    var buildVertexOceanBuffer = function(tilesHorizontal, tilesVertical){
         vertexBufferArrayOcean = [];
-        vertexNumberOcean = 3 * (transformSize - 1) * (transformSize - 1) * 2;
+        vertexNumberOcean = 3 * (transformSize) * (transformSize) * 2
+                          * ((tilesHorizontal - 1) * 2 + 1)
+                          * ((tilesVertical   - 1) * 2 + 1);
     
-        for(var z = 0; z < transformSize - 1; z++){
-            var t =  z      / transformSize * 2 - 1;
-            var b = (z + 1) / transformSize * 2 - 1;
-            for(var x = 0; x < transformSize - 1; x++){
-                var l =  x      / transformSize * 2 - 1;
-                var r = (x + 1) / transformSize * 2 - 1;
-                vertexBufferArrayOcean.push(l);
-                vertexBufferArrayOcean.push(t);
-                vertexBufferArrayOcean.push(l);
-                vertexBufferArrayOcean.push(b);
-                vertexBufferArrayOcean.push(r);
-                vertexBufferArrayOcean.push(b);
-    
-                vertexBufferArrayOcean.push(r);
-                vertexBufferArrayOcean.push(b);
-                vertexBufferArrayOcean.push(r);
-                vertexBufferArrayOcean.push(t);
-                vertexBufferArrayOcean.push(l);
-                vertexBufferArrayOcean.push(t);
+        for(var tv = 1 - tilesVertical; tv < tilesVertical; tv++){
+            for(var z = 0; z < transformSize; z++){
+                var t =  z      / transformSize * 2 - 1 + tv * 2;
+                var b = (z + 1) / transformSize * 2 - 1 + tv * 2;
+                for(var th = 1 - tilesHorizontal; th < tilesHorizontal; th++){
+                    for(var x = 0; x < transformSize; x++){
+                        var l =  x      / transformSize * 2 - 1 + th * 2;
+                        var r = (x + 1) / transformSize * 2 - 1 + th * 2;
+                        vertexBufferArrayOcean.push(l);
+                        vertexBufferArrayOcean.push(t);
+                        vertexBufferArrayOcean.push(l);
+                        vertexBufferArrayOcean.push(b);
+                        vertexBufferArrayOcean.push(r);
+                        vertexBufferArrayOcean.push(b);
+            
+                        vertexBufferArrayOcean.push(r);
+                        vertexBufferArrayOcean.push(b);
+                        vertexBufferArrayOcean.push(r);
+                        vertexBufferArrayOcean.push(t);
+                        vertexBufferArrayOcean.push(l);
+                        vertexBufferArrayOcean.push(t);
+                    }
+                }
             }
         }
 
@@ -269,7 +276,7 @@ var Renderer = function(canvas, params) {
         gl.vertexAttribPointer(INDEX_BUFFER_OCEAN, 2, gl.FLOAT, false, 0, 0);
     }
 
-    buildVertexOceanBuffer();
+    buildVertexOceanBuffer(params[PARAM_NAME_NO_TILES_HORIZONTAL], params[PARAM_NAME_NO_TILES_VERTICAL]);
      
     gl.enableVertexAttribArray(INDEX_BUFFER_FULLSCREEN);
     gl.enableVertexAttribArray(INDEX_BUFFER_OCEAN);
@@ -344,8 +351,11 @@ var Renderer = function(canvas, params) {
                     transformSize = value;
                     buildTextures();
                     buildFramebuffers();
-                    buildVertexOceanBuffer();
+                    buildVertexOceanBuffer(params[PARAM_NAME_NO_TILES_HORIZONTAL], params[PARAM_NAME_NO_TILES_VERTICAL]);
 
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_transformSize'], transformSize);
+       
                     gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_transformSize'], value);
                     
@@ -371,6 +381,11 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programFFT2Cols.uniformLocations['u_transformSize'], value);
 
                     reinitHeightInFrequency = true;
+                    break;
+
+                case PARAM_NAME_NO_TILES_HORIZONTAL:
+                case PARAM_NAME_NO_TILES_VERTICAL:
+                    buildVertexOceanBuffer(params[PARAM_NAME_NO_TILES_HORIZONTAL], params[PARAM_NAME_NO_TILES_VERTICAL]);
                     break;
 
                 case PARAM_NAME_PHILLIPS_CONST:

@@ -209,6 +209,8 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform mat4 u_perspectiveMatrix;
     uniform mat4 u_viewMatrix;
 
+    uniform float u_transformSize;
+
     uniform float u_displacementConst;
     uniform float u_scaleHorizontal;
     uniform float u_scaleVertical;
@@ -221,8 +223,8 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform float u_diffuseBiasLin;
 
     
-    vec2 texPos(vec2 position){
-        return position * 0.5 - 0.5;
+    vec2 texPos(vec2 position2D){
+        return (mod((position2D + 1.), 2.) - 1.) * 0.5 - 0.5;
     }
 
     vec3 hdr (vec3 color, float exposure) {
@@ -241,9 +243,18 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
         return clamp(0.5 * (fs * fs + ft * ft), 0., 1.);
     }
 
+    float determineSign(vec2 position2D){
+        vec2 det = mod(floor(position2D + 1.) * 0.5, 2.);
+        if((det.x >= 1. && det.y < 1.) || (det.x < 1. && det.y >= 1.)){
+            return -1.;
+        } else {
+            return 1.;
+        }
+    }
+
     vec3 calculatePosition3D(vec2 position2D){
-        float height      = u_scaleVertical   * texture2D(u_height, texPos(position2D)).x;
-        vec2 displacement = u_scaleHorizontal * texture2D(u_displacement, texPos(position2D)).xz;
+        float height      = u_scaleVertical   * determineSign(position2D) * texture2D(u_height, texPos(position2D)).x;
+        vec2 displacement = u_scaleHorizontal * determineSign(position2D) * texture2D(u_displacement, texPos(position2D)).xz;
         vec2 displaced2D  = u_scaleHorizontal * position2D + displacement * u_displacementConst;
     
         return vec3(displaced2D.x, height, displaced2D.y);
@@ -251,12 +262,12 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
 
     vec3 calculateNormal(vec2 position2D){
     #ifdef NORMAL_PRECISE   
-        vec2 slope      = u_scaleHorizontal * texture2D(u_slope, texPos(position2D)).xz;
+        vec2 slope      = u_scaleHorizontal * determineSign(position2D) * texture2D(u_slope, texPos(position2D)).xz;
         vec3 normalPrec = normalize(vec3(-slope.x, 1., -slope.y));
     #endif
     
     #ifdef NORMAL_FINITE_DIFFERENCE
-        float delta = 1. / 512.;
+        float delta = 1. / u_transformSize;
         
         vec3 center = calculatePosition3D(a_position);
         vec3 top    = calculatePosition3D(a_position - vec2(0     , delta ));

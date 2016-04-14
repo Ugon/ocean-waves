@@ -3,21 +3,23 @@ var Gui = function(guiDiv){
     var params = this.params;
 
     params[PARAM_NAME_TRANSFORM_SIZE]      = PARAM_INIT_TRANSFORM_SIZE;
+    params[PARAM_NAME_NO_TILES_HORIZONTAL] = PARAM_INIT_NO_TILES_HORIZONTAL;
+    params[PARAM_NAME_NO_TILES_VERTICAL]   = PARAM_INIT_NO_TILES_VERTICAL;
 
-	params[PARAM_NAME_PHILLIPS_CONST]      = PARAM_INIT_PHILLIPS_CONST;
-	params[PARAM_NAME_SMALL_WAVE_SUPPRESS] = PARAM_INIT_SMALL_WAVE_SUPPRESS;
-	params[PARAM_NAME_DISPLACEMENT_CONST]  = PARAM_INIT_DISPLACEMENT_CONST;
+    params[PARAM_NAME_PHILLIPS_CONST]      = PARAM_INIT_PHILLIPS_CONST;
+    params[PARAM_NAME_SMALL_WAVE_SUPPRESS] = PARAM_INIT_SMALL_WAVE_SUPPRESS;
+    params[PARAM_NAME_DISPLACEMENT_CONST]  = PARAM_INIT_DISPLACEMENT_CONST;
 
-	params[PARAM_NAME_TIME_STEP]           = PARAM_INIT_TIME_STEP;
-	params[PARAM_NAME_WIND_X]              = PARAM_INIT_WIND_X;
-	params[PARAM_NAME_WIND_Y]              = PARAM_INIT_WIND_Y;
-	params[PARAM_NAME_SIZE_CALC]           = PARAM_INIT_SIZE_CALC;
-	params[PARAM_NAME_SCALE_HORIZONTAL]    = PARAM_INIT_SCALE_HORIZONTAL;
-	params[PARAM_NAME_SCALE_VERTICAL]      = PARAM_INIT_SCALE_VERTICAL;
+    params[PARAM_NAME_TIME_STEP]           = PARAM_INIT_TIME_STEP;
+    params[PARAM_NAME_WIND_X]              = PARAM_INIT_WIND_X;
+    params[PARAM_NAME_WIND_Y]              = PARAM_INIT_WIND_Y;
+    params[PARAM_NAME_SIZE_CALC]           = PARAM_INIT_SIZE_CALC;
+    params[PARAM_NAME_SCALE_HORIZONTAL]    = PARAM_INIT_SCALE_HORIZONTAL;
+    params[PARAM_NAME_SCALE_VERTICAL]      = PARAM_INIT_SCALE_VERTICAL;
 
-	params[PARAM_NAME_COLOR_OCEAN]         = PARAM_INIT_COLOR_OCEAN;
-	params[PARAM_NAME_COLOR_SKY]           = PARAM_INIT_COLOR_SKY;
-	params[PARAM_NAME_COLOR_SUN]           = PARAM_INIT_COLOR_SUN;
+    params[PARAM_NAME_COLOR_OCEAN]         = PARAM_INIT_COLOR_OCEAN;
+    params[PARAM_NAME_COLOR_SKY]           = PARAM_INIT_COLOR_SKY;
+    params[PARAM_NAME_COLOR_SUN]           = PARAM_INIT_COLOR_SUN;
 
     params[PARAM_NAME_FRESNEL_BIAS_EXP]    = PARAM_INIT_FRESNEL_BIAS_EXP;
     params[PARAM_NAME_FRESNEL_BIAS_LIN]    = PARAM_INIT_FRESNEL_BIAS_LIN;
@@ -29,12 +31,13 @@ var Gui = function(guiDiv){
     params[PARAM_NAME_NORMAL_PRECISE]      = PARAM_INIT_NORMAL_PRECISE;
     params[PARAM_NAME_NORMAL_FIN_DIFF]     = PARAM_INIT_NORMAL_FIN_DIFF;
 
-	params[PARAM_NAME_SUN_X]               = PARAM_INIT_SUN_X;
-	params[PARAM_NAME_SUN_Y]               = PARAM_INIT_SUN_Y;
-	params[PARAM_NAME_SUN_Z]               = PARAM_INIT_SUN_Z;
+    params[PARAM_NAME_SUN_X]               = PARAM_INIT_SUN_X;
+    params[PARAM_NAME_SUN_Y]               = PARAM_INIT_SUN_Y;
+    params[PARAM_NAME_SUN_Z]               = PARAM_INIT_SUN_Z;
 
-	params[PARAM_NAME_MOUSE_SPEED]         = PARAM_INIT_MOUSE_SPEED;
-	params[PARAM_NAME_WHEEL_SPEED]         = PARAM_INIT_WHEEL_SPEED;
+    params[PARAM_NAME_MOUSE_SPEED]         = PARAM_INIT_MOUSE_SPEED;
+    params[PARAM_NAME_WHEEL_SPEED]         = PARAM_INIT_WHEEL_SPEED;
+    
 
 	params['changed'] =  {};
 
@@ -59,6 +62,9 @@ var Gui = function(guiDiv){
 	var colorParams      = gui.addFolder('Color');
 	var controlParams    = gui.addFolder('Control');
 	var transformSize    = gui.addFolder('FFT Size');
+
+    transformSize.add(params, PARAM_NAME_NO_TILES_HORIZONTAL , 1, 5).step(1);
+    transformSize.add(params, PARAM_NAME_NO_TILES_VERTICAL   , 1, 5).step(1);
 
     spectrumParams.add(params, PARAM_NAME_PHILLIPS_CONST      , 0, 1);
     spectrumParams.add(params, PARAM_NAME_SMALL_WAVE_SUPPRESS , 0, 1);
