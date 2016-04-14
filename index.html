@@ -11,7 +11,6 @@
     <script type="text/javascript" src="parameters.js"></script>
     
     <script type="text/javascript" src="gui.js"></script>
-    <script type="text/javascript" src="utils.js"></script>
     <script type="text/javascript" src="camera.js"></script>
     <script type="text/javascript" src="shaders.js"></script>
     <script type="text/javascript" src="renderer.js"></script>
@@ -35,8 +34,8 @@
 
     var gui             = new Gui(guiDiv);
     var params          = gui.params;
+    var camera          = new Camera(params);
     var renderer        = new Renderer(canvas, params);
-    var camera          = new Camera();
     var projectonMatrix = mat4.create();
 
 
@@ -103,7 +102,7 @@
     var time = 0;
     var nextFrame = function(){
         time += PARAM_CALC_TIME_STEP(params[PARAM_NAME_TIME_STEP]);
-        renderer.renderFrame(time, camera.getViewMatrix(), projectonMatrix, camera.getPosition(), params.getChanges());
+        renderer.renderFrame(time, projectonMatrix, params.getChanges());
         requestAnimationFrame(nextFrame);
     }
     nextFrame();

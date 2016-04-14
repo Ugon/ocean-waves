@@ -29,9 +29,12 @@ var Gui = function(guiDiv){
     params[PARAM_NAME_DIFFUSE_BIAS_EXP]    = PARAM_INIT_DIFFUSE_BIAS_EXP;
     params[PARAM_NAME_DIFFUSE_BIAS_LIN]    = PARAM_INIT_DIFFUSE_BIAS_LIN;
 
-    params[PARAM_NAME_SUN_X]               = PARAM_INIT_SUN_X;
-    params[PARAM_NAME_SUN_Y]               = PARAM_INIT_SUN_Y;
-    params[PARAM_NAME_SUN_Z]               = PARAM_INIT_SUN_Z;
+    params[PARAM_NAME_SUN_AZIMUTH]         = PARAM_INIT_SUN_AZIMUTH;
+    params[PARAM_NAME_SUN_ELEVATION]       = PARAM_INIT_SUN_ELEVATION;
+    params[PARAM_NAME_SUN_DISTANCE]        = PARAM_INIT_SUN_DISTANCE;
+    params[PARAM_NAME_CAMERA_AZIMUTH]      = PARAM_INIT_CAMERA_AZIMUTH;
+    params[PARAM_NAME_CAMERA_ELEVATION]    = PARAM_INIT_CAMERA_ELEVATION;
+    params[PARAM_NAME_CAMERA_DISTANCE]     = PARAM_INIT_CAMERA_DISTANCE;
 
     params[PARAM_NAME_MOUSE_SPEED]         = PARAM_INIT_MOUSE_SPEED;
     params[PARAM_NAME_WHEEL_SPEED]         = PARAM_INIT_WHEEL_SPEED;
@@ -57,9 +60,10 @@ var Gui = function(guiDiv){
 
 	var spectrumParams   = gui.addFolder('Spectrum');
 	var conditionsParams = gui.addFolder('Conditions');
-	var colorParams      = gui.addFolder('Color');
+    var colorParams      = gui.addFolder('Color');
+	var positionParams   = gui.addFolder('Position');
+    var transformSize    = gui.addFolder('FFT Size');
 	var controlParams    = gui.addFolder('Control');
-	var transformSize    = gui.addFolder('FFT Size');
 
     transformSize.add(params, PARAM_NAME_NO_TILES_HORIZONTAL , 1, 5).step(1);
     transformSize.add(params, PARAM_NAME_NO_TILES_VERTICAL   , 1, 5).step(1);
@@ -88,10 +92,6 @@ var Gui = function(guiDiv){
     colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_EXP  , 0, 1);
     colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_LIN  , 0, 1);
     
-    colorParams.add(params, PARAM_NAME_SUN_X , 0, 1);
-    colorParams.add(params, PARAM_NAME_SUN_Y , 0, 1);
-    colorParams.add(params, PARAM_NAME_SUN_Z , 0, 1);
-
     controlParams.add(params, PARAM_NAME_MOUSE_SPEED , 0, 1);
     controlParams.add(params, PARAM_NAME_WHEEL_SPEED , 0, 1);  
 
@@ -112,6 +112,41 @@ var Gui = function(guiDiv){
 
             controller.onChange(onChangeFun);
         }
+    }
+
+    positionParams.add(params, 
+        PARAM_NAME_CAMERA_AZIMUTH, 
+        PARAM_MIN_CAMERA_AZIMUTH, 
+        PARAM_MAX_CAMERA_AZIMUTH).listen();
+    positionParams.add(params, 
+        PARAM_NAME_CAMERA_ELEVATION, 
+        PARAM_MIN_CAMERA_ELEVATION, 
+        PARAM_MAX_CAMERA_ELEVATION).listen();
+    positionParams.add(params, PARAM_NAME_CAMERA_DISTANCE, 0, 1).listen();
+
+    positionParams.add(params, 
+        PARAM_NAME_SUN_AZIMUTH,
+        PARAM_MIN_SUN_AZIMUTH,
+        PARAM_MAX_SUN_AZIMUTH).listen();
+    positionParams.add(params, 
+        PARAM_NAME_SUN_ELEVATION,
+        PARAM_MIN_SUN_ELEVATION,
+        PARAM_MAX_SUN_ELEVATION).listen();
+    positionParams.add(params, PARAM_NAME_SUN_DISTANCE, 0, 1).listen();
+    
+    
+    for(var ctrlInd in positionParams.__controllers){
+        var ctrl = positionParams.__controllers[ctrlInd];
+        var onChangeFun = (function(){
+            var property = ctrl.property;
+            return function(value){
+                console.log('dupa');
+                params[property] = value;
+                params.changed[property] = true;
+            }
+        })();
+
+        ctrl.onChange(onChangeFun);
     }
 
     //mutex fft size
@@ -160,7 +195,8 @@ var Gui = function(guiDiv){
 
     // spectrumParams.open();
     // conditionsParams.open();
-    colorParams.open();
+    // colorParams.open();
+    positionParams.open();
     // controlParams.open();
     gui.open();
 

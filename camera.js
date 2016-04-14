@@ -1,63 +1,43 @@
-var Camera = function () {
-    var azimuth = INIT_AZIMUTH;
-    var elevation = INIT_ELEVATION;
-    var distance = INIT_DISTANCE;
-
-    var viewMatrix = mat4.create();
-    var positionVec = vec3.create();
-    var distanceVec = vec3.create();
-    var changed = true;
-
-    var clamp = function (num, lowBound, highBound) {
-        return Math.min(Math.max(num, lowBound), highBound);
-    }
-
+var Camera = function (params) {
     this.changeAzimuth = function (deltaAzimuth) {
-        azimuth += deltaAzimuth;
-        azimuth = clamp(azimuth, MIN_AZIMUTH, MAX_AZIMUTH);
-        changed = true;
-    };
+        var azimuth = params[PARAM_NAME_CAMERA_AZIMUTH];
+        azimuth = PARAM_CALC_INV_CAMERA_AZIMUTH(azimuth + deltaAzimuth);
+        params[PARAM_NAME_CAMERA_AZIMUTH] = azimuth;
+        params.changed[PARAM_NAME_CAMERA_AZIMUTH] = azimuth;
+    }
 
     this.changeElevation = function (deltaElevation) {
-        elevation += deltaElevation;
-        elevation = clamp(elevation, MIN_ELEVATION, MAX_ELEVATION);
-        changed = true;
-    };
+        var elevation = params[PARAM_NAME_CAMERA_ELEVATION];
+        elevation = PARAM_CALC_INV_CAMERA_ELEVATION(elevation + deltaElevation);
+        params[PARAM_NAME_CAMERA_ELEVATION] = elevation;
+        params.changed[PARAM_NAME_CAMERA_ELEVATION] = elevation;
+    }
 
     this.changeDistance = function (deltaDistance) {
-    	distance += deltaDistance;
-    	distance = clamp(distance, MIN_DISTANCE, MAX_DISTANCE);
-    	changed = true;
+        var distance = params[PARAM_NAME_CAMERA_DISTANCE];
+    	distance = PARAM_CALC_INV_CAMERA_DISTANCE(distance + deltaDistance);
+        params[PARAM_NAME_CAMERA_DISTANCE] = distance;
+        params.changed[PARAM_NAME_CAMERA_DISTANCE] = distance;
     }
+}
 
-    var calculateParams = function() {
-        vec3.set(distanceVec, 0, 0, -distance);
+var polar2cartesianVec = function(distance, azimuth, elevation){
+    x = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(Math.PI / 2 + azimuth);
+    y = distance * Math.cos(Math.PI / 2 - elevation);  
+    z = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(Math.PI / 2 + azimuth);
+    
+    var cartesian = vec3.create();
+    vec3.set(cartesian, x, y, z);
+    return cartesian;
+}
 
-        mat4.identity(viewMatrix);
-        mat4.translate(viewMatrix, viewMatrix, distanceVec)
-        mat4.rotateX(viewMatrix, viewMatrix, elevation);
-        mat4.rotateY(viewMatrix, viewMatrix, azimuth);
+var polar2viewMat = function(distance, azimuth, elevation){
+    var viewMatrix = mat4.create();
+    var distanceVec = vec3.create();
+    vec3.set(distanceVec, 0, 0, -distance);
 
-    	x = distance * Math.sin(Math.PI / 2 - elevation) * Math.cos(Math.PI / 2 + azimuth);
-        y = distance * Math.cos(Math.PI / 2 - elevation);  
-        z = distance * Math.sin(Math.PI / 2 - elevation) * Math.sin(Math.PI / 2 + azimuth);
-
-        vec3.set(positionVec, x, y, z);
-    }
-
-    this.getPosition = function () {
-    	if (changed) {
-			calculateParams();
-			changed = false;
-    	}
-        return positionVec;
-    };
-
-    this.getViewMatrix = function () {
-        if (changed) {
-        	calculateParams();
-            changed = false;
-        }
-        return viewMatrix;
-    };
-};
+    mat4.translate(viewMatrix, viewMatrix, distanceVec)
+    mat4.rotateX(viewMatrix, viewMatrix, elevation);
+    mat4.rotateY(viewMatrix, viewMatrix, azimuth);
+    return viewMatrix;
+}

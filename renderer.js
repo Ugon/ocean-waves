@@ -75,7 +75,7 @@ var Renderer = function(canvas, params) {
         for(i = 0; i < 6; i++) result += Math.random();
         return (result - 3) / 3
     }
-    
+
     var buildTextures = function() {
         var randomNormalPairs = [];
         for (var i = 0; i < transformSize * transformSize; i++){
@@ -210,6 +210,35 @@ var Renderer = function(canvas, params) {
     gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(params[PARAM_NAME_SEPCULAR_BIAS_LIN]));
     gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'],  PARAM_CALC_DIFFUSE_BIAS_EXP( params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
     gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'],  PARAM_CALC_DIFFUSE_BIAS_LIN( params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
+
+    var setOceanCameraPosition = function(){
+        var xyz = polar2cartesianVec(
+            PARAM_CALC_CAMERA_DISTANCE( params[PARAM_NAME_CAMERA_DISTANCE]),
+            PARAM_CALC_CAMERA_AZIMUTH(  params[PARAM_NAME_CAMERA_AZIMUTH]),
+            PARAM_CALC_CAMERA_ELEVATION(params[PARAM_NAME_CAMERA_ELEVATION]));
+
+        var viewMatrix = polar2viewMat(
+            PARAM_CALC_CAMERA_DISTANCE( params[PARAM_NAME_CAMERA_DISTANCE]),
+            PARAM_CALC_CAMERA_AZIMUTH(  params[PARAM_NAME_CAMERA_AZIMUTH]),
+            PARAM_CALC_CAMERA_ELEVATION(params[PARAM_NAME_CAMERA_ELEVATION]));
+
+        gl.useProgram(programOcean.program);
+        gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], xyz);
+        gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
+    }
+
+    var setOceanSunPosition = function(){
+        var xyz = polar2cartesianVec(
+            PARAM_CALC_SUN_DISTANCE( params[PARAM_NAME_SUN_DISTANCE]),
+            PARAM_CALC_SUN_AZIMUTH(  params[PARAM_NAME_SUN_AZIMUTH]),
+            PARAM_CALC_SUN_ELEVATION(params[PARAM_NAME_SUN_ELEVATION]));
+
+        gl.useProgram(programOcean.program);
+        gl.uniform3fv(programOcean.uniformLocations['u_sunPosition'], xyz);
+    }
+
+    setOceanCameraPosition();
+    setOceanSunPosition();
 
     /*****************************************************************/
     /**********************INIT VERTEX BUFFERS************************/
@@ -469,18 +498,17 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'], PARAM_CALC_DIFFUSE_BIAS_LIN(value));
                     break;
 
-                case PARAM_NAME_SUN_X:
-                    console.log(PARAM_CALC_SUN_X(value));
+                case PARAM_NAME_CAMERA_AZIMUTH:
+                case PARAM_NAME_CAMERA_ELEVATION:
+                case PARAM_NAME_CAMERA_DISTANCE:
+                    setOceanCameraPosition();
+                    break;     
+
+                case PARAM_NAME_SUN_AZIMUTH:
+                case PARAM_NAME_SUN_ELEVATION:
+                case PARAM_NAME_SUN_DISTANCE:
+                    setOceanSunPosition();
                     break;
-                
-                case PARAM_NAME_SUN_Y:
-                    console.log(PARAM_CALC_SUN_Y(value));
-                    break;
-                
-                case PARAM_NAME_SUN_Z:
-                    console.log(PARAM_CALC_SUN_Z(value));
-                    break;
-                         
             }
         }
     }
@@ -493,7 +521,7 @@ var Renderer = function(canvas, params) {
     /*****************************************************************/
     /************************RENDER FUNCTION**************************/
     /*****************************************************************/
-    this.renderFrame = function(time, viewMatrix, projectonMatrix, cameraPosition, paramChanges){
+    this.renderFrame = function(time, projectonMatrix, paramChanges){
         applyParamChanges(paramChanges);
         
         gl.useProgram(programHeightAfterTInFrequency.program);
@@ -514,12 +542,7 @@ var Renderer = function(canvas, params) {
         runFFT(programFFT2Rows, programFFT2Cols, UNIT_TEXTURE_SLOPE_AFTER_T_IN_FREQUENCY, framebufferSlopeAfterTInTime);
 
         gl.useProgram(programOcean.program);
-        gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
-
-        
-        gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], cameraPosition);
-        gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 0, 20, -100);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);
