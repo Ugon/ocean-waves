@@ -7,17 +7,8 @@ var Renderer = function(canvas, params) {
     /*****************************************************************/
     /************************SHADER SOURCES***************************/
     /*****************************************************************/
-    var vertexShaderSourcePassPosition =
-        VERTEX_SHADER_SOURCE_DO_NOTHING;
-    
-    var vertexShaderSourceOceanPrec = 
-        '#define NORMAL_PRECISE\n' + VERTEX_SHADER_SOURCE_OCEAN;
-
-    var vertexShaderSourceOceanFin = 
-        '#define NORMAL_FINITE_DIFFERENCE\n' + VERTEX_SHADER_SOURCE_OCEAN;
-
-    var vertexShaderSourceOceanPrecFin = 
-        '#define NORMAL_PRECISE\n#define NORMAL_FINITE_DIFFERENCE\n' + VERTEX_SHADER_SOURCE_OCEAN;
+    var vertexShaderSourcePassPosition = VERTEX_SHADER_SOURCE_DO_NOTHING;
+    var vertexShaderSourceOcean        = VERTEX_SHADER_SOURCE_OCEAN;
 
     var fragmentShaderSourceFFT1Rows = 
         '#define ROWS\n' + FRAGMENT_SHADER_SOURCE_FFT;    
@@ -53,9 +44,7 @@ var Renderer = function(canvas, params) {
     /*************************BUILD SHADERS***************************/
     /*****************************************************************/
     var vertexShaderPassPosition                    = buildVertexShader(gl, vertexShaderSourcePassPosition);
-    var vertexShaderOceanPrecFin                    = buildVertexShader(gl, vertexShaderSourceOceanPrecFin);
-    var vertexShaderOceanPrec                       = buildVertexShader(gl, vertexShaderSourceOceanPrec);
-    var vertexShaderOceanFin                        = buildVertexShader(gl, vertexShaderSourceOceanFin);
+    var vertexShaderOcean                           = buildVertexShader(gl, vertexShaderSourceOcean);
     
     var fragmentShaderHeightInitInFrequency         = buildFragmentShader(gl, fragmentShaderSourceHeightInitInFrequency);
     var fragmentShaderHeightAfterTInFrequency       = buildFragmentShader(gl, fragmentShaderSourceheightAfterTInFrequency);
@@ -66,12 +55,6 @@ var Renderer = function(canvas, params) {
     var fragmentShaderFFT2Rows                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Rows);
     var fragmentShaderFFT2Cols                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Cols);
     var fragmentShaderOcean                         = buildFragmentShader(gl, fragmentShaderSourceOcean);
-
-    var chooseOceanVertexShader = function(precise, finiteDifference){
-        if      (precise && finiteDifference) return vertexShaderOceanPrecFin;
-        else if (precise                    ) return vertexShaderOceanPrec;
-        else if (           finiteDifference) return vertexShaderOceanFin;
-    }
 
     /*****************************************************************/
     /*************************INIT TEXTURES***************************/
@@ -87,6 +70,12 @@ var Renderer = function(canvas, params) {
     var texturePing;
     var texturePong;
 
+    var randomNormal = function() {
+        var result = 0;
+        for(i = 0; i < 6; i++) result += Math.random();
+        return (result - 3) / 3
+    }
+    
     var buildTextures = function() {
         var randomNormalPairs = [];
         for (var i = 0; i < transformSize * transformSize; i++){
@@ -198,35 +187,29 @@ var Renderer = function(canvas, params) {
     gl.useProgram(programFFT2Cols.program);
     gl.uniform1f(programFFT2Cols.uniformLocations['u_transformSize'], transformSize);
 
-    var buildOceanProgram = function(vertexShader){
-        var programResult = buildProgramData(gl, vertexShader, fragmentShaderOcean, 
-            { 'a_position': INDEX_BUFFER_OCEAN });
-        gl.useProgram(programResult.program);
-        gl.uniform1f(programResult.uniformLocations['u_transformSize'], transformSize);
-        gl.uniform1i(programResult.uniformLocations['u_height'],        UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
-        gl.uniform1i(programResult.uniformLocations['u_displacement'],  UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
-        gl.uniform1i(programResult.uniformLocations['u_slope'],         UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
-    
-        gl.uniform1f(programResult.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
-        gl.uniform1f(programResult.uniformLocations['u_scaleHorizontal'],   PARAM_CALC_SCALE_HORIZONTAL(  params[PARAM_NAME_SCALE_HORIZONTAL]));
-        gl.uniform1f(programResult.uniformLocations['u_scaleVertical'],     PARAM_CALC_SCALE_VERTICAL(    params[PARAM_NAME_SCALE_VERTICAL]));
+    var programOcean = buildProgramData(gl, vertexShaderOcean, fragmentShaderOcean, 
+        { 'a_position': INDEX_BUFFER_OCEAN });
+    gl.useProgram(programOcean.program);
+    gl.uniform1f(programOcean.uniformLocations['u_transformSize'], transformSize);
+    gl.uniform1i(programOcean.uniformLocations['u_height'],        UNIT_TEXTURE_HEIGHT_AFTER_T_IN_TIME);
+    gl.uniform1i(programOcean.uniformLocations['u_displacement'],  UNIT_TEXTURE_DISPLACEMENT_AFTER_T_IN_TIME);
+    gl.uniform1i(programOcean.uniformLocations['u_slope'],         UNIT_TEXTURE_SLOPE_AFTER_T_IN_TIME);
 
-        gl.uniform3fv(programResult.uniformLocations['u_skyColor'],   PARAM_CALC_COLOR_SKY(  params[PARAM_NAME_COLOR_SKY]));
-        gl.uniform3fv(programResult.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
-        gl.uniform3fv(programResult.uniformLocations['u_sunColor'],   PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
-    
-        gl.uniform1f(programResult.uniformLocations['u_fresnelBiasExp'],  PARAM_CALC_FRESNEL_BIAS_EXP( params[PARAM_NAME_FRESNEL_BIAS_EXP]));
-        gl.uniform1f(programResult.uniformLocations['u_fresnelBiasLin'],  PARAM_CALC_FRESNEL_BIAS_LIN( params[PARAM_NAME_FRESNEL_BIAS_LIN]));
-        gl.uniform1f(programResult.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(params[PARAM_NAME_SEPCULAR_BIAS_EXP]));
-        gl.uniform1f(programResult.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(params[PARAM_NAME_SEPCULAR_BIAS_LIN]));
-        gl.uniform1f(programResult.uniformLocations['u_diffuseBiasExp'],  PARAM_CALC_DIFFUSE_BIAS_EXP( params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
-        gl.uniform1f(programResult.uniformLocations['u_diffuseBiasLin'],  PARAM_CALC_DIFFUSE_BIAS_LIN( params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
-        
-        return programResult;
-    }
-    
-    var programOcean = buildOceanProgram(
-        chooseOceanVertexShader(params[PARAM_NAME_NORMAL_PRECISE], params[PARAM_NAME_NORMAL_FIN_DIFF]));
+    gl.uniform1f(programOcean.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
+    gl.uniform1f(programOcean.uniformLocations['u_scaleHorizontal'],   PARAM_CALC_SCALE_HORIZONTAL(  params[PARAM_NAME_SCALE_HORIZONTAL]));
+    gl.uniform1f(programOcean.uniformLocations['u_scaleVertical'],     PARAM_CALC_SCALE_VERTICAL(    params[PARAM_NAME_SCALE_VERTICAL]));
+
+    gl.uniform3fv(programOcean.uniformLocations['u_skyColor'],   PARAM_CALC_COLOR_SKY(  params[PARAM_NAME_COLOR_SKY]));
+    gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
+    gl.uniform3fv(programOcean.uniformLocations['u_sunColor'],   PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
+
+    gl.uniform1f(programOcean.uniformLocations['u_normalRatio'],     PARAM_CALC_NORMAL_RATIO(     params[PARAM_NAME_NORMAL_RATIO]));
+    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'],  PARAM_CALC_FRESNEL_BIAS_EXP( params[PARAM_NAME_FRESNEL_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'],  PARAM_CALC_FRESNEL_BIAS_LIN( params[PARAM_NAME_FRESNEL_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(params[PARAM_NAME_SEPCULAR_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(params[PARAM_NAME_SEPCULAR_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'],  PARAM_CALC_DIFFUSE_BIAS_EXP( params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'],  PARAM_CALC_DIFFUSE_BIAS_LIN( params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
 
     /*****************************************************************/
     /**********************INIT VERTEX BUFFERS************************/
@@ -347,7 +330,6 @@ var Renderer = function(canvas, params) {
     /********************APPLY CHANGES FUNCTION***********************/
     /*****************************************************************/
     var applyParamChanges = function(paramChanges){
-        var reinitHeightInFrequency = false;
         for(var name in paramChanges){
             var value = paramChanges[name];
             switch(name) {
@@ -384,7 +366,7 @@ var Renderer = function(canvas, params) {
                     gl.useProgram(programFFT2Cols.program);
                     gl.uniform1f(programFFT2Cols.uniformLocations['u_transformSize'], value);
 
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
 
                 case PARAM_NAME_NO_TILES_HORIZONTAL:
@@ -393,15 +375,15 @@ var Renderer = function(canvas, params) {
                     break;
 
                 case PARAM_NAME_PHILLIPS_CONST:
-                    if(!reinitHeightInFrequency) gl.useProgram(programInitHeightInFrequency.program);
+                    gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_phillipsConst'], PARAM_CALC_PHILLIPS_CONST(value));
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
                 
                 case PARAM_NAME_SMALL_WAVE_SUPPRESS:
-                    if(!reinitHeightInFrequency) gl.useProgram(programInitHeightInFrequency.program);
+                    gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_smallWavesSuppress'], PARAM_CALC_SMALL_WAVE_SUPPRESS(value));
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
 
                 case PARAM_NAME_DISPLACEMENT_CONST:
@@ -410,21 +392,21 @@ var Renderer = function(canvas, params) {
                     break;              
                 
                 case PARAM_NAME_WIND_X:
-                    if(!reinitHeightInFrequency) gl.useProgram(programInitHeightInFrequency.program);
+                    gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_windX'], PARAM_CALC_WIND_X(value));
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
                 
                 case PARAM_NAME_WIND_Y:
-                    if(!reinitHeightInFrequency) gl.useProgram(programInitHeightInFrequency.program);
+                    gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_windY'], PARAM_CALC_WIND_Y(value));
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
                 
                 case PARAM_NAME_SIZE_CALC:
-                    if(!reinitHeightInFrequency) gl.useProgram(programInitHeightInFrequency.program);
+                    gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_areaSize'], PARAM_CALC_SIZE_CALC(value));
-                    reinitHeightInFrequency = true;
+                    initHeightInFrequency();
                     break;
                 
                 case PARAM_NAME_SCALE_HORIZONTAL:
@@ -439,17 +421,22 @@ var Renderer = function(canvas, params) {
                 
                 case PARAM_NAME_COLOR_SKY:
                     gl.useProgram(programOcean.program);
-                    gl.uniform3fv(programOcean.uniformLocations['u_skyColor'], PARAM_CALC_COLOR_SKY(  params[PARAM_NAME_COLOR_SKY]));
+                    gl.uniform3fv(programOcean.uniformLocations['u_skyColor'], PARAM_CALC_COLOR_SKY(value));
                     break;
             
                 case PARAM_NAME_COLOR_OCEAN:
                     gl.useProgram(programOcean.program);
-                    gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
+                    gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(value));
                     break;   
                
                 case PARAM_NAME_COLOR_SUN:
                     gl.useProgram(programOcean.program);
-                    gl.uniform3fv(programOcean.uniformLocations['u_sunColor'], PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
+                    gl.uniform3fv(programOcean.uniformLocations['u_sunColor'], PARAM_CALC_COLOR_SUN(value));
+                    break;
+
+                case PARAM_NAME_NORMAL_RATIO:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_normalRatio'], PARAM_CALC_NORMAL_RATIO(value));
                     break;
 
                 case PARAM_NAME_FRESNEL_BIAS_EXP:
@@ -493,25 +480,9 @@ var Renderer = function(canvas, params) {
                 case PARAM_NAME_SUN_Z:
                     console.log(PARAM_CALC_SUN_Z(value));
                     break;
-
-                case PARAM_NAME_NORMAL_PRECISE:
-                case PARAM_NAME_NORMAL_FIN_DIFF:
-                    programOcean = buildOceanProgram( 
-                        chooseOceanVertexShader(params[PARAM_NAME_NORMAL_PRECISE], params[PARAM_NAME_NORMAL_FIN_DIFF]));
-                    break;
-
-                            
+                         
             }
-
-            
-
-            
         }
-        if(reinitHeightInFrequency){
-            initHeightInFrequency();
-        }
-
-
     }
 
 

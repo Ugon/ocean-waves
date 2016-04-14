@@ -21,15 +21,13 @@ var Gui = function(guiDiv){
     params[PARAM_NAME_COLOR_SKY]           = PARAM_INIT_COLOR_SKY;
     params[PARAM_NAME_COLOR_SUN]           = PARAM_INIT_COLOR_SUN;
 
+    params[PARAM_NAME_NORMAL_RATIO]        = PARAM_INIT_NORMAL_RATIO;
     params[PARAM_NAME_FRESNEL_BIAS_EXP]    = PARAM_INIT_FRESNEL_BIAS_EXP;
     params[PARAM_NAME_FRESNEL_BIAS_LIN]    = PARAM_INIT_FRESNEL_BIAS_LIN;
     params[PARAM_NAME_SEPCULAR_BIAS_EXP]   = PARAM_INIT_SEPCULAR_BIAS_EXP;
     params[PARAM_NAME_SEPCULAR_BIAS_LIN]   = PARAM_INIT_SEPCULAR_BIAS_LIN;
     params[PARAM_NAME_DIFFUSE_BIAS_EXP]    = PARAM_INIT_DIFFUSE_BIAS_EXP;
     params[PARAM_NAME_DIFFUSE_BIAS_LIN]    = PARAM_INIT_DIFFUSE_BIAS_LIN;
-
-    params[PARAM_NAME_NORMAL_PRECISE]      = PARAM_INIT_NORMAL_PRECISE;
-    params[PARAM_NAME_NORMAL_FIN_DIFF]     = PARAM_INIT_NORMAL_FIN_DIFF;
 
     params[PARAM_NAME_SUN_X]               = PARAM_INIT_SUN_X;
     params[PARAM_NAME_SUN_Y]               = PARAM_INIT_SUN_Y;
@@ -39,7 +37,7 @@ var Gui = function(guiDiv){
     params[PARAM_NAME_WHEEL_SPEED]         = PARAM_INIT_WHEEL_SPEED;
     
 
-	params['changed'] =  {};
+	params['changed'] = {};
 
 
     this.params.getChanges = function(){
@@ -77,10 +75,12 @@ var Gui = function(guiDiv){
     conditionsParams.add(params, PARAM_NAME_SCALE_HORIZONTAL , 0, 1);
     conditionsParams.add(params, PARAM_NAME_SCALE_VERTICAL   , 0, 1);
 
-    colorParams.addColor(params, PARAM_NAME_COLOR_OCEAN , 0, 1);
-    colorParams.addColor(params, PARAM_NAME_COLOR_SKY   , 0, 1);
-    colorParams.addColor(params, PARAM_NAME_COLOR_SUN   , 0, 1);
-    
+
+    var oceanColorCtrl = colorParams.addColor(params, PARAM_NAME_COLOR_OCEAN , 0, 1);
+    var skyColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SKY   , 0, 1);
+    var sunColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SUN   , 0, 1);
+   
+    colorParams.add(params, PARAM_NAME_NORMAL_RATIO      , 0, 1);
     colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_EXP  , 0, 1);
     colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_LIN  , 0, 1);
     colorParams.add(params, PARAM_NAME_SEPCULAR_BIAS_EXP , 0, 1);
@@ -94,9 +94,6 @@ var Gui = function(guiDiv){
 
     controlParams.add(params, PARAM_NAME_MOUSE_SPEED , 0, 1);
     controlParams.add(params, PARAM_NAME_WHEEL_SPEED , 0, 1);  
-
-    var normalPrecCtrl = colorParams.add(params, PARAM_NAME_NORMAL_PRECISE).listen();
-    var normalFinCtrl  = colorParams.add(params, PARAM_NAME_NORMAL_FIN_DIFF).listen();
 
     //set changed
     var folders = gui.__folders;
@@ -139,32 +136,33 @@ var Gui = function(guiDiv){
     }
     params[PARAM_INIT_TRANSFORM_SIZE] = true;
 
-    //validate normal
-    normalPrecCtrl.onChange(function(){
-        if (!params[PARAM_NAME_NORMAL_FIN_DIFF]){
-            params[PARAM_NAME_NORMAL_PRECISE] = true;
-        } else {
-            console.log('prec');
-            params.changed[PARAM_NAME_NORMAL_PRECISE] = true;
+    //color string handling
+    var colorOnChangeFun = function(paramName){
+        var pName = paramName;
+        return function(value){
+            var val;
+            if(typeof value === 'string'){
+                var r = parseInt(value.substring(1, 3), 16);
+                var g = parseInt(value.substring(3, 5), 16);
+                var b = parseInt(value.substring(5, 7), 16);
+                val = [r, g, b];
+            } else {
+                val = value;
+            }
+            params[pName] = val;
+            params.changed[pName] = true;
         }
-    });
+    }
 
-    normalFinCtrl.onChange(function(){
-        if (!params[PARAM_NAME_NORMAL_PRECISE]){
-            params[PARAM_NAME_NORMAL_FIN_DIFF] = true;
-        } else {
-            console.log('fin');
-            params.changed[PARAM_NAME_NORMAL_FIN_DIFF] = true;
-        }
-    });
+    oceanColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_OCEAN));
+    skyColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_SKY));
+    sunColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_SUN));
 
     // spectrumParams.open();
     // conditionsParams.open();
     colorParams.open();
     // controlParams.open();
     gui.open();
-
-    console.log(this);
 
     guiDiv.appendChild(gui.domElement);
 }

@@ -185,8 +185,6 @@ var FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY = `
 /**************************OCEAN SHADERS**************************/
 /*****************************************************************/
 var VERTEX_SHADER_SOURCE_OCEAN = `
-    // #define NORMAL_PRECISE
-    // #define NORMAL_FINITE_DIFFERENCE
     precision highp float;
     
     const float nSnell = 1.33;
@@ -215,6 +213,7 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform float u_scaleHorizontal;
     uniform float u_scaleVertical;
 
+    uniform float u_normalRatio;
     uniform float u_fresnelBiasExp;
     uniform float u_fresnelBiasLin;
     uniform float u_specularBiasExp;
@@ -261,12 +260,11 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     }
 
     vec3 calculateNormal(vec2 position2D){
-    #ifdef NORMAL_PRECISE   
+        //normal precise
         vec2 slope      = u_scaleHorizontal * determineSign(position2D) * texture2D(u_slope, texPos(position2D)).xz;
         vec3 normalPrec = normalize(vec3(-slope.x, 1., -slope.y));
-    #endif
-    
-    #ifdef NORMAL_FINITE_DIFFERENCE
+   
+        //normal finite difference
         float delta = 1. / u_transformSize;
         
         vec3 center = calculatePosition3D(a_position);
@@ -287,25 +285,8 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
         result += cross(botVector, rightVector); 
         
         vec3 normalFin = normalize(result);
-    #endif
-    
-    #ifdef  NORMAL_PRECISE 
-    #ifdef  NORMAL_FINITE_DIFFERENCE
-        return normalize(normalPrec + normalFin);
-    #endif
-    #endif
-    
-    #ifdef  NORMAL_PRECISE 
-    #ifndef NORMAL_FINITE_DIFFERENCE
-        return normalPrec;
-    #endif
-    #endif
 
-    #ifndef NORMAL_PRECISE 
-    #ifdef  NORMAL_FINITE_DIFFERENCE
-        return normalFin;
-    #endif
-    #endif
+        return normalize(u_normalRatio * normalPrec + (1. - u_normalRatio) * normalFin);
     }
 
     void main(void) {
@@ -336,92 +317,3 @@ var FRAGMENT_SHADER_SOURCE_OCEAN = `
     void main(void) {
         gl_FragColor = vec4(v_color, 1);
     }`
-
-
-
-
-
-/*
-        if((a_position.x >= 0. && a_position.y < 0.) || (a_position.x < 0. && a_position.y >= 0.)){
-            height = -height;
-            displacement = -displacement;
-            slope = -slope;
-        }
-        */
-
-/*
-vec3 v = (u_viewMatrix * vec4(position, 1.0)).xyz;
-vec3 lightVector = normalize((u_viewMatrix * vec4(u_sunPosition, 1.0)).xyz - v);
-// vec3 lightVector = normalize((u_viewMatrix * vec4(u_sunPosition, 1.0)).xyz - v);
-
-        float facing = dot(normal, (u_viewMatrix * vec4(lightVector, 0)).xyz);
-        // float facing = dot(normal, lightVector);
-        if(facing > 0.) {
-            vec3 halfAngleVector = normalize(lightVector + normalize(-v));
-            // float mod = max(pow(dot(normal, normalize(u_sunPosition - position)), 3.0), 0.0);
-            float mod = max(pow(dot(normal, halfAngleVector), 120.0), 0.01);
-            // color += vec3(mod, 0, 0);
-            color += mod;
-        }
-        */
-/*
-
-
-    vec3 pos(vec2 pos){
-        vec2 texPos = position2TexturePosition(pos);
-
-        float height         = texture2D(u_height, texPos).x;
-        vec2 displacement = texture2D(u_displacement, texPos).xz;
-
-        vec2 dispPos  = pos + displacement * 0.1;
-        vec3 position = vec3(dispPos.x, height, dispPos.y);
-        return position;
-    }
-
-
-    float delta = 1. / 512.;
-
-vec3 center = pos(v_position);
-vec3 top    = pos(v_position + vec2(0     , delta ));
-vec3 bot    = pos(v_position - vec2(0     , delta ));
-vec3 left   = pos(v_position - vec2(delta , 0     ));
-vec3 right  = pos(v_position + vec2(delta , 0     ));
-
-vec3 topVector = top - center;
-vec3 botVector = bot - center;
-vec3 leftVector = left - center;
-vec3 rightVector = right - center;
-
-vec3 vectorrt = cross(rightVector, topVector);
-vec3 vectortl = cross(topVector, leftVector);
-vec3 vectorlb = cross(leftVector, botVector);
-vec3 vectorbr = cross(botVector, rightVector); 
-
-vec3 normal2 = normalize(vectorbr + vectorlb + vectortl + vectorrt);
-
-
-
-        vec3 oceanColor = vec3(0.04, 0.16, 0.47) * 2.;
-        vec3 skyColor = vec3(3.2, 9.6, 12.8);
-
-        vec2 slope = texture2D(u_slope, texPos).xz; // * 5.;
-
-        vec3 normal = normalize(vec3(-slope.x, 1, -slope.y));
-
-        vec3 view = normalize(u_cameraPosition - position);
-
-        vec3 incident = normalize(-u_sunVector);
-
-        float fresnel = 1.0 - clamp(dot(normal, view), 0., 1.);
-        // float fresnel = 0.02 + 0.98 * pow(1.0 - dot(normal, view), 5.0);
-        vec3 sky = fresnel * skyColor;
-
-        float diffuse = clamp(dot(normal, normalize(u_sunVector)), 0.0, 1.0);
-        vec3 water = (1.0 - fresnel) * oceanColor * skyColor * diffuse;
-
-        vec3 color = sky + water;
-
-        color = hdr(color, 0.35);
-
-
-*/
