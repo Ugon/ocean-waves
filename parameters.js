@@ -85,22 +85,22 @@ var PARAM_CALC_SCALE_VERTICAL = function(value){
 	return (value + 1) * 2;
 };
 
-var PARAM_NAME_COLOR_OCEAN = 'ocean';
-var PARAM_INIT_COLOR_OCEAN = 0.1;
-var PARAM_CALC_COLOR_OCEAN = function(value){
-	return value;
+var PARAM_NAME_COLOR_SKY = 'sky';
+var PARAM_INIT_COLOR_SKY = [0.10, 0.70, 1.00].map(function(v){return v * 255});
+var PARAM_CALC_COLOR_SKY = function(value){
+	return value.map(function(v){return v / 255});
 };
 
-var PARAM_NAME_COLOR_SKY = 'sky';
-var PARAM_INIT_COLOR_SKY = 0.1;
-var PARAM_CALC_COLOR_SKY = function(value){
-	return value;
+var PARAM_NAME_COLOR_OCEAN = 'ocean';
+var PARAM_INIT_COLOR_OCEAN = [0.04, 0.06, 0.27].map(function(v){return v * 255});
+var PARAM_CALC_COLOR_OCEAN = function(value){
+	return value.map(function(v){return v / 255});
 };
 
 var PARAM_NAME_COLOR_SUN = 'sun';
-var PARAM_INIT_COLOR_SUN = 0.1;
+var PARAM_INIT_COLOR_SUN = [1.00, 1.00, 0.30].map(function(v){return v * 255});
 var PARAM_CALC_COLOR_SUN = function(value){
-	return value;
+	return value.map(function(v){return v / 255});
 };
 
 var PARAM_NAME_FRESNEL_BIAS_EXP = 'fresnelBiasExp';

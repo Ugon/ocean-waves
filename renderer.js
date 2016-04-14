@@ -210,6 +210,10 @@ var Renderer = function(canvas, params) {
         gl.uniform1f(programResult.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(params[PARAM_NAME_DISPLACEMENT_CONST]));
         gl.uniform1f(programResult.uniformLocations['u_scaleHorizontal'],   PARAM_CALC_SCALE_HORIZONTAL(  params[PARAM_NAME_SCALE_HORIZONTAL]));
         gl.uniform1f(programResult.uniformLocations['u_scaleVertical'],     PARAM_CALC_SCALE_VERTICAL(    params[PARAM_NAME_SCALE_VERTICAL]));
+
+        gl.uniform3fv(programResult.uniformLocations['u_skyColor'],   PARAM_CALC_COLOR_SKY(  params[PARAM_NAME_COLOR_SKY]));
+        gl.uniform3fv(programResult.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
+        gl.uniform3fv(programResult.uniformLocations['u_sunColor'],   PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
     
         gl.uniform1f(programResult.uniformLocations['u_fresnelBiasExp'],  PARAM_CALC_FRESNEL_BIAS_EXP( params[PARAM_NAME_FRESNEL_BIAS_EXP]));
         gl.uniform1f(programResult.uniformLocations['u_fresnelBiasLin'],  PARAM_CALC_FRESNEL_BIAS_LIN( params[PARAM_NAME_FRESNEL_BIAS_LIN]));
@@ -433,16 +437,19 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programOcean.uniformLocations['u_scaleVertical'], PARAM_CALC_SCALE_VERTICAL(value));
                     break;
                 
-                case PARAM_NAME_COLOR_OCEAN:
-                    console.log(PARAM_CALC_COLOR_OCEAN(value));
-                    break;
-                
                 case PARAM_NAME_COLOR_SKY:
-                    console.log(PARAM_CALC_COLOR_SKY(value));
+                    gl.useProgram(programOcean.program);
+                    gl.uniform3fv(programOcean.uniformLocations['u_skyColor'], PARAM_CALC_COLOR_SKY(  params[PARAM_NAME_COLOR_SKY]));
                     break;
-                
+            
+                case PARAM_NAME_COLOR_OCEAN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
+                    break;   
+               
                 case PARAM_NAME_COLOR_SUN:
-                    console.log(PARAM_CALC_COLOR_SUN(value));
+                    gl.useProgram(programOcean.program);
+                    gl.uniform3fv(programOcean.uniformLocations['u_sunColor'], PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
                     break;
 
                 case PARAM_NAME_FRESNEL_BIAS_EXP:
@@ -539,10 +546,7 @@ var Renderer = function(canvas, params) {
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
 
-        gl.uniform3fv(programOcean.uniformLocations['u_skyColor'],   new Float32Array([0.10, 0.70, 1.00]));
-        gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], new Float32Array([0.04, 0.06, 0.27]));
-        gl.uniform3fv(programOcean.uniformLocations['u_sunColor'],   new Float32Array([1.00, 1.00, 0.30]));
-
+        
         gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], cameraPosition);
         gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 0, 20, -100);
 
