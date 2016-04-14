@@ -454,8 +454,20 @@ var Renderer = function(canvas, params) {
         gl.useProgram(programOcean.program);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_viewMatrix'], false, viewMatrix);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
+
+        gl.uniform3fv(programOcean.uniformLocations['u_skyColor'],   new Float32Array([0.10, 0.70, 1.00]));
+        gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], new Float32Array([0.04, 0.06, 0.27]));
+        gl.uniform3fv(programOcean.uniformLocations['u_sunColor'],   new Float32Array([1.00, 1.00, 0.30]));
+
         gl.uniform3fv(programOcean.uniformLocations['u_cameraPosition'], cameraPosition);
-        gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 100, 20, 0);
+        gl.uniform3f(programOcean.uniformLocations['u_sunPosition'], 0, 20, -100);
+
+        gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'] , 4);
+        gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'] , 2);
+        gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], 100);
+        gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], 1);
+        gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'] , 10);
+        gl.uniform1f(programOcean.uniformLocations['u_DiffuseBiasLin'] , 1);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);
