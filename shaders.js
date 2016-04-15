@@ -103,7 +103,7 @@ var FRAGMENT_SHADER_SOURCE_HEIGHT_INIT_IN_FREQUENCY = `
         //Phillips spectrum
         float Ph = u_phillipsConst
                  * exp((-1.0 / square(klen * L))) / square(klen * klen) 
-                 * square(dot(normalize(k), normalize(windVector)))      //direction factor
+                 * square(dot(normalize(k), normalize(windVector)))        //direction factor
                  * exp(-square(klen * u_areaSize / u_smallWavesSuppress)); //remove small waves
         float sqrtPh = sqrt(Ph * 0.5);
 
@@ -277,6 +277,7 @@ var FRAGMENT_SHADER_SOURCE_OCEAN = `
     uniform vec3 u_oceanColor;
     uniform vec3 u_sunColor;    
     
+    uniform float u_hdr;
     uniform float u_fresnelBiasExp;
     uniform float u_fresnelBiasLin;
     uniform float u_specularBlinnRatio;
@@ -319,5 +320,5 @@ var FRAGMENT_SHADER_SOURCE_OCEAN = `
         vec3 ocean = u_oceanColor * (1. - fresnel) * diffuse;
         vec3 sun   = u_sunColor   * specular;
 
-        gl_FragColor = vec4(sky + ocean + sun, 1);
+        gl_FragColor = vec4(hdr(sky + ocean + sun, u_hdr), 1);        
     }`

@@ -20,10 +20,11 @@ var Gui = function(guiDiv, statsDiv){
     params[PARAM_NAME_COLOR_SKY]            = PARAM_INIT_COLOR_SKY;
     params[PARAM_NAME_COLOR_SUN]            = PARAM_INIT_COLOR_SUN;
 
+    params[PARAM_NAME_HDR]                  = PARAM_INIT_HDR;
     params[PARAM_NAME_NORMAL_RATIO]         = PARAM_INIT_NORMAL_RATIO;
-    params[PARAM_NAME_SPECULAR_BLINN_RATIO] = PARAM_INIT_SPECULAR_BLINN_RATIO;
     params[PARAM_NAME_FRESNEL_BIAS_EXP]     = PARAM_INIT_FRESNEL_BIAS_EXP;
     params[PARAM_NAME_FRESNEL_BIAS_LIN]     = PARAM_INIT_FRESNEL_BIAS_LIN;
+    params[PARAM_NAME_SPECULAR_BLINN_RATIO] = PARAM_INIT_SPECULAR_BLINN_RATIO;
     params[PARAM_NAME_BLINN_PHONG_BIAS_EXP] = PARAM_INIT_BLINN_PHONG_BIAS_EXP;
     params[PARAM_NAME_BLINN_PHONG_BIAS_LIN] = PARAM_INIT_BLINN_PHONG_BIAS_LIN;
     params[PARAM_NAME_PHONG_BIAS_EXP]       = PARAM_INIT_PHONG_BIAS_EXP;
@@ -82,10 +83,11 @@ var Gui = function(guiDiv, statsDiv){
     var skyColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SKY   , 0, 1);
     var sunColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SUN   , 0, 1);
    
+    colorParams.add(params, PARAM_NAME_HDR                  , 0, 1);
     colorParams.add(params, PARAM_NAME_NORMAL_RATIO         , 0, 1);
-    colorParams.add(params, PARAM_NAME_SPECULAR_BLINN_RATIO , 0, 1);
     colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_EXP     , 0, 1);
     colorParams.add(params, PARAM_NAME_FRESNEL_BIAS_LIN     , 0, 1);
+    colorParams.add(params, PARAM_NAME_SPECULAR_BLINN_RATIO , 0, 1);
     colorParams.add(params, PARAM_NAME_BLINN_PHONG_BIAS_EXP , 0, 1);
     colorParams.add(params, PARAM_NAME_BLINN_PHONG_BIAS_LIN , 0, 1);
     colorParams.add(params, PARAM_NAME_PHONG_BIAS_EXP       , 0, 1);
@@ -205,6 +207,5 @@ var Gui = function(guiDiv, statsDiv){
     fpsOnChangeFun(params[PARAM_NAME_SHOW_FPS]);
 
     gui.open();
-    // gui.domElement.style.width = 300;
     guiDiv.appendChild(gui.domElement);
 }

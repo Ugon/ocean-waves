@@ -55,10 +55,11 @@
         overlayDiv.style.width = windowWidth + 'px';
         overlayDiv.style.height = windowHeight + 'px';
 
-        mat4.perspective(projectonMatrix, FOV, windowWidth/windowHeight, NEAR, FAR);
+        mat4.perspective(projectonMatrix, PARAM_FOV, windowWidth/windowHeight, PARAM_NEAR, PARAM_FAR);
     }
 
     window.addEventListener('resize', onWindowResize);
+    onWindowResize();
 
     var mouseDown = false;
     var lastMouseX = 0;
@@ -69,7 +70,6 @@
         lastMouseX = event.clientX;
         lastMouseY = event.clientY;
     });
-
 
     overlay.addEventListener('mousemove', function(event) {
         var mouseSpeed = PARAM_CALC_MOUSE_SPEED(params[PARAM_NAME_MOUSE_SPEED])
@@ -89,16 +89,11 @@
         mouseDown = false;
     });
 
-    var fun = function(event) {
+    overlay.addEventListener('wheel', function(event) {
         var wheelSpeed = PARAM_CALC_WHEEL_SPEED(params[PARAM_NAME_WHEEL_SPEED]);
         camera.changeDistance(event.deltaY * wheelSpeed);
-    };
-
-    overlay.addEventListener('wheel', fun);
+    });
   
-    onWindowResize();
-
-
     /*****************************************************************/
     /***************************ANIMATION*****************************/
     /*****************************************************************/

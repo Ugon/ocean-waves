@@ -4,6 +4,7 @@ var Renderer = function(canvas, params) {
 
     var transformSize = params[PARAM_NAME_TRANSFORM_SIZE];
 
+
     /*****************************************************************/
     /************************SHADER SOURCES***************************/
     /*****************************************************************/
@@ -38,8 +39,6 @@ var Renderer = function(canvas, params) {
         FRAGMENT_SHADER_SOURCE_OCEAN;
 
     
-
-
     /*****************************************************************/
     /*************************BUILD SHADERS***************************/
     /*****************************************************************/
@@ -56,8 +55,9 @@ var Renderer = function(canvas, params) {
     var fragmentShaderFFT2Cols                      = buildFragmentShader(gl, fragmentShaderSourceFFT2Cols);
     var fragmentShaderOcean                         = buildFragmentShader(gl, fragmentShaderSourceOcean);
 
+
     /*****************************************************************/
-    /*************************INIT TEXTURES***************************/
+    /************************BUILD TEXTURES***************************/
     /*****************************************************************/
     var texturerandomComplexNumbers;
     var textureInitHeightInFrequency;
@@ -102,7 +102,7 @@ var Renderer = function(canvas, params) {
 
 
     /*****************************************************************/
-    /***********************INIT FRAMEBUFFERS*************************/
+    /**********************BUILD FRAMEBUFFERS*************************/
     /*****************************************************************/
     var framebufferInitHeightInFrequency;
     var framebufferHeightAfterTInFrequency;
@@ -203,6 +203,7 @@ var Renderer = function(canvas, params) {
     gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
     gl.uniform3fv(programOcean.uniformLocations['u_sunColor'],   PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
 
+    gl.uniform1f(programOcean.uniformLocations['u_hdr'],                PARAM_CALC_HDR(                 params[PARAM_NAME_HDR]));
     gl.uniform1f(programOcean.uniformLocations['u_normalRatio'],        PARAM_CALC_NORMAL_RATIO(        params[PARAM_NAME_NORMAL_RATIO]));
     gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'],     PARAM_CALC_FRESNEL_BIAS_EXP(    params[PARAM_NAME_FRESNEL_BIAS_EXP]));
     gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'],     PARAM_CALC_FRESNEL_BIAS_LIN(    params[PARAM_NAME_FRESNEL_BIAS_LIN]));
@@ -243,8 +244,9 @@ var Renderer = function(canvas, params) {
     setOceanCameraPosition();
     setOceanSunPosition();
 
+
     /*****************************************************************/
-    /**********************INIT VERTEX BUFFERS************************/
+    /**********************BUILD VERTEX BUFFERS***********************/
     /*****************************************************************/
     var vertexBufferArrayFullscreen = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0];
     var vertexNumberFullscreen = 4;
@@ -302,7 +304,7 @@ var Renderer = function(canvas, params) {
 
 
     /*****************************************************************/
-    /*******************FFT MAIN LOOP FUNCTION************************/
+    /************************FFT MAIN LOOP****************************/
     /*****************************************************************/
     var runFFT = function(programFFTRows, programFFTCols, inputTextureUnit, outputFramebuffer){
         gl.useProgram(programFFTRows.program);
@@ -337,7 +339,6 @@ var Renderer = function(canvas, params) {
             subtransformSize *= 2;
         }
 
-
         gl.useProgram(programFFTCols.program);
         gl.uniform1i(programFFTCols.uniformLocations['u_input'], getCurrentPingPongTextureUnit());
         gl.uniform1f(programFFTCols.uniformLocations['u_subtransformSize'], subtransformSize);
@@ -347,7 +348,7 @@ var Renderer = function(canvas, params) {
 
 
     /*****************************************************************/
-    /****************RENDER INIT HEIGHT IN FREQUENCY******************/
+    /****************INIT HEIGHT IN FREQUENCY FUNCTION****************/
     /*****************************************************************/
     var initHeightInFrequency = function() {
         gl.useProgram(programInitHeightInFrequency.program);
@@ -401,11 +402,6 @@ var Renderer = function(canvas, params) {
                     initHeightInFrequency();
                     break;
 
-                case PARAM_NAME_NO_TILES_HORIZONTAL:
-                case PARAM_NAME_NO_TILES_VERTICAL:
-                    buildVertexOceanBuffer(params[PARAM_NAME_NO_TILES_HORIZONTAL], params[PARAM_NAME_NO_TILES_VERTICAL]);
-                    break;
-
                 case PARAM_NAME_PHILLIPS_CONST:
                     gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_phillipsConst'], PARAM_CALC_PHILLIPS_CONST(value));
@@ -417,11 +413,6 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_smallWavesSuppress'], PARAM_CALC_SMALL_WAVE_SUPPRESS(value));
                     initHeightInFrequency();
                     break;
-
-                case PARAM_NAME_DISPLACEMENT_CONST:
-                    gl.useProgram(programOcean.program);
-                    gl.uniform1f(programOcean.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(value));
-                    break;              
                 
                 case PARAM_NAME_WIND_X:
                     gl.useProgram(programInitHeightInFrequency.program);
@@ -439,6 +430,11 @@ var Renderer = function(canvas, params) {
                     gl.useProgram(programInitHeightInFrequency.program);
                     gl.uniform1f(programInitHeightInFrequency.uniformLocations['u_areaSize'], PARAM_CALC_SIZE_CALC(value));
                     initHeightInFrequency();
+                    break;
+
+                case PARAM_NAME_DISPLACEMENT_CONST:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_displacementConst'], PARAM_CALC_DISPLACEMENT_CONST(value));
                     break;
                 
                 case PARAM_NAME_SCALE_HORIZONTAL:
@@ -464,6 +460,11 @@ var Renderer = function(canvas, params) {
                 case PARAM_NAME_COLOR_SUN:
                     gl.useProgram(programOcean.program);
                     gl.uniform3fv(programOcean.uniformLocations['u_sunColor'], PARAM_CALC_COLOR_SUN(value));
+                    break;
+
+                case PARAM_NAME_HDR:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_hdr'], PARAM_CALC_HDR(value));
                     break;
 
                 case PARAM_NAME_NORMAL_RATIO:
@@ -516,6 +517,11 @@ var Renderer = function(canvas, params) {
                     gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'], PARAM_CALC_DIFFUSE_BIAS_LIN(value));
                     break;
 
+                case PARAM_NAME_NO_TILES_HORIZONTAL:
+                case PARAM_NAME_NO_TILES_VERTICAL:
+                    buildVertexOceanBuffer(params[PARAM_NAME_NO_TILES_HORIZONTAL], params[PARAM_NAME_NO_TILES_VERTICAL]);
+                    break;
+
                 case PARAM_NAME_CAMERA_AZIMUTH:
                 case PARAM_NAME_CAMERA_ELEVATION:
                 case PARAM_NAME_CAMERA_DISTANCE:
@@ -530,11 +536,7 @@ var Renderer = function(canvas, params) {
             }
         }
     }
-
-
-
-
-
+    
 
     /*****************************************************************/
     /************************RENDER FUNCTION**************************/
@@ -561,7 +563,6 @@ var Renderer = function(canvas, params) {
 
         gl.useProgram(programOcean.program);
         gl.uniformMatrix4fv(programOcean.uniformLocations['u_perspectiveMatrix'], false, projectonMatrix);
-
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.drawArrays(gl.TRIANGLES, 0, vertexNumberOcean);

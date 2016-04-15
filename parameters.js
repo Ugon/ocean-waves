@@ -1,15 +1,9 @@
-
-
-NEAR = 0;
-FAR = 10000;
-FOV = (60 / 180) * Math.PI;
-
 var clamp = function (num, lowBound, highBound) {
     return Math.min(Math.max(num, lowBound), highBound);
 }
 
 var PARAM_NAME_TRANSFORM_SIZE = 'transformSize';
-var PARAM_INIT_TRANSFORM_SIZE = 256;
+var PARAM_INIT_TRANSFORM_SIZE = 512;
 var PARAM_POSS_TRANSFORM_SIZE = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024];
 
 var PARAM_NAME_NO_TILES_HORIZONTAL = 'tilesHorizontal';
@@ -43,13 +37,13 @@ var PARAM_CALC_TIME_STEP = function(value){
 }
 
 var PARAM_NAME_WIND_X = 'windX';
-var PARAM_INIT_WIND_X = 0.3;
+var PARAM_INIT_WIND_X = 0.35;
 var PARAM_CALC_WIND_X = function(value){
 	return value * 10;
 }
 
 var PARAM_NAME_WIND_Y = 'windY';
-var PARAM_INIT_WIND_Y = 0.2;
+var PARAM_INIT_WIND_Y = 0.25;
 var PARAM_CALC_WIND_Y = function(value){
 	return value * 10;
 }
@@ -94,6 +88,12 @@ var PARAM_NAME_COLOR_SUN = 'sun';
 var PARAM_INIT_COLOR_SUN = [1.00, 1.00, 0.30].map(function(v){return v * 255});
 var PARAM_CALC_COLOR_SUN = function(value){
 	return value.map(function(v){return v / 255});
+}
+
+var PARAM_NAME_HDR = 'hdr';
+var PARAM_INIT_HDR = 0.2;
+var PARAM_CALC_HDR = function(value){
+	return value * 4;
 }
 
 var PARAM_NAME_FRESNEL_BIAS_EXP = 'fresnelBiasExp';
@@ -155,7 +155,7 @@ var PARAM_MIN_SUN_AZIMUTH = 0;
 var PARAM_MAX_SUN_AZIMUTH = 360;
 var PARAM_INIT_SUN_AZIMUTH = 0;
 var PARAM_CALC_SUN_AZIMUTH = function(value){
-	return value / 180 * Math.PI;
+	return value / 180 * Math.PI - Math.PI;
 }
 var PARAM_CALC_INV_SUN_AZIMUTH = function(value){
 	return clamp((value + 360) % 360, PARAM_MIN_SUN_AZIMUTH, PARAM_MAX_SUN_AZIMUTH);
@@ -188,7 +188,7 @@ var PARAM_MIN_CAMERA_AZIMUTH  = 0;
 var PARAM_MAX_CAMERA_AZIMUTH  = 360;
 var PARAM_INIT_CAMERA_AZIMUTH = 180;
 var PARAM_CALC_CAMERA_AZIMUTH = function(value){
-	return value / 180 * Math.PI;
+	return value / 180 * Math.PI - Math.PI;
 }
 var PARAM_CALC_INV_CAMERA_AZIMUTH = function(value){
 	return clamp((value + 360) % 360, PARAM_MIN_CAMERA_AZIMUTH, PARAM_MAX_CAMERA_AZIMUTH);
@@ -231,8 +231,9 @@ var PARAM_CALC_WHEEL_SPEED = function(value){
 	return value / 250;
 }
 
-
-
+var PARAM_NEAR = 0;
+var PARAM_FAR  = 10000;
+var PARAM_FOV  = (60 / 180) * Math.PI;
 
 var INDEX_BUFFER_FULLSCREEN = 0;
 var INDEX_BUFFER_OCEAN = 1;
