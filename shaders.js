@@ -3,10 +3,7 @@ var VERTEX_SHADER_SOURCE_DO_NOTHING = `
 
     attribute vec2 a_position;
 
-    varying vec2 v_position;
-
     void main(void) {
-        v_position = a_position;
         gl_Position = vec4(a_position, 0, 1);
     }`
 
@@ -187,23 +184,15 @@ var FRAGMENT_SHADER_SOURCE_DISPLACEMENT_SLOPE_AFTER_T_IN_FREQUENCY = `
 var VERTEX_SHADER_SOURCE_OCEAN = `
     precision highp float;
     
-    const float nSnell = 1.33;
-
     attribute vec2 a_position; //[-1, 1]   
 
-    varying vec3 v_color;
+    varying vec3 v_normal;
+    varying vec3 v_position;
 
     uniform sampler2D u_height;
     uniform sampler2D u_displacement;
     uniform sampler2D u_slope;
     
-    uniform vec3 u_skyColor;
-    uniform vec3 u_oceanColor;
-    uniform vec3 u_sunColor;    
-    
-    uniform vec3 u_cameraPosition;
-    uniform vec3 u_sunPosition;
-
     uniform mat4 u_perspectiveMatrix;
     uniform mat4 u_viewMatrix;
 
@@ -214,32 +203,9 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     uniform float u_scaleVertical;
 
     uniform float u_normalRatio;
-    uniform float u_fresnelBiasExp;
-    uniform float u_fresnelBiasLin;
-    uniform float u_specularBiasExp;
-    uniform float u_specularBiasLin;
-    uniform float u_diffuseBiasExp;
-    uniform float u_diffuseBiasLin;
-
     
     vec2 texPos(vec2 position2D){
         return (mod((position2D + 1.), 2.) - 1.) * 0.5 - 0.5;
-    }
-
-    vec3 hdr (vec3 color, float exposure) {
-        return 1.0 - exp(-color * exposure);
-    }
-
-    float calculateFresnel(vec3 normal, vec3 viewDirection) {
-        float thetaICos = abs(dot(normal, viewDirection));
-        float thetaI    = acos(thetaICos);
-        float thetaTSin = sin(thetaI / nSnell);
-        float thetaT    = asin(thetaTSin);
-        
-        float fs = sin(thetaT - thetaI) / sin(thetaT + thetaI);
-        float ft = tan(thetaT - thetaI) / tan(thetaT - thetaI);
-
-        return clamp(0.5 * (fs * fs + ft * ft), 0., 1.);
     }
 
     float determineSign(vec2 position2D){
@@ -290,30 +256,68 @@ var VERTEX_SHADER_SOURCE_OCEAN = `
     }
 
     void main(void) {
-        vec3 position    = calculatePosition3D(a_position);
-        vec3 normal      = calculateNormal(a_position);
-        vec3 viewVector  = normalize(u_cameraPosition - position);
-        vec3 lightVector = normalize(u_sunPosition - position);
-        vec3 halfVector  = normalize(viewVector + lightVector);      
-        
-        float fresnelReflectivity  = pow(calculateFresnel(normal, viewVector), u_fresnelBiasExp) * u_fresnelBiasLin;
-        float specularReflectivity = max(pow(dot(normal, halfVector), u_specularBiasExp) * u_specularBiasLin, 0.01);
-        float diffuse              = clamp(pow(normal.y, u_diffuseBiasExp) * u_diffuseBiasLin, 0., 1.);
-
-        vec3 sky   = u_skyColor   * fresnelReflectivity;
-        vec3 ocean = u_oceanColor * (1. - fresnelReflectivity) * diffuse;
-        vec3 sun   = u_sunColor   * specularReflectivity;
-
-        v_color = sky + ocean + sun;
-        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(position, 1);
+        v_position  = calculatePosition3D(a_position);
+        v_normal    = calculateNormal(a_position);      
+        gl_Position = u_perspectiveMatrix * u_viewMatrix * vec4(v_position, 1);
     }`
 
 
 var FRAGMENT_SHADER_SOURCE_OCEAN = `
     precision highp float;
 
-    varying vec3 v_color;
+    const float nSnell = 1.33;
+
+    varying vec3 v_normal;
+    varying vec3 v_position;
+
+    uniform vec3 u_cameraPosition;
+    uniform vec3 u_sunPosition;
+
+    uniform vec3 u_skyColor;
+    uniform vec3 u_oceanColor;
+    uniform vec3 u_sunColor;    
+    
+    uniform float u_fresnelBiasExp;
+    uniform float u_fresnelBiasLin;
+    uniform float u_specularBlinnRatio;
+    uniform float u_blinnPhongBiasExp;
+    uniform float u_blinnPhongBiasLin;
+    uniform float u_phongBiasExp;
+    uniform float u_phongBiasLin;
+    uniform float u_diffuseBiasExp;
+    uniform float u_diffuseBiasLin;
+
+    vec3 hdr (vec3 color, float exposure) {
+        return 1.0 - exp(-color * exposure);
+    }
+
+    float calculateFresnel(vec3 normal, vec3 viewDirection) {
+        float thetaICos = abs(dot(normal, viewDirection));
+        float thetaI    = acos(thetaICos);
+        float thetaTSin = sin(thetaI / nSnell);
+        float thetaT    = asin(thetaTSin);
+        
+        float fs = sin(thetaT - thetaI) / sin(thetaT + thetaI);
+        float ft = tan(thetaT - thetaI) / tan(thetaT - thetaI);
+
+        return clamp(0.5 * (fs * fs + ft * ft), 0., 1.);
+    }
 
     void main(void) {
-        gl_FragColor = vec4(v_color, 1);
+        vec3 viewVector    = normalize(u_cameraPosition - v_position);
+        vec3 lightVector   = normalize(u_sunPosition - v_position);
+        vec3 halfVector    = normalize(viewVector + lightVector);      
+        vec3 reflectVector = reflect(-lightVector, v_normal);
+
+        float diffuse    = pow(v_normal.y, u_diffuseBiasExp) * u_diffuseBiasLin;
+        float fresnel    = pow(calculateFresnel(v_normal, viewVector), u_fresnelBiasExp) * u_fresnelBiasLin;
+        float blinnPhong = pow(max(dot(reflectVector, viewVector), 0.0), u_blinnPhongBiasExp) * u_blinnPhongBiasLin;       
+        float phong      = pow(max(dot(v_normal, halfVector), 0.0), u_phongBiasExp) * u_phongBiasLin;
+        float specular   = u_specularBlinnRatio * blinnPhong + (1. - u_specularBlinnRatio) * phong;
+
+        vec3 sky   = u_skyColor   * fresnel;
+        vec3 ocean = u_oceanColor * (1. - fresnel) * diffuse;
+        vec3 sun   = u_sunColor   * specular;
+
+        gl_FragColor = vec4(sky + ocean + sun, 1);
     }`

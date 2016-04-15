@@ -31,7 +31,7 @@ var PARAM_CALC_SMALL_WAVE_SUPPRESS = function(value){
 }
 
 var PARAM_NAME_DISPLACEMENT_CONST = 'displacement';
-var PARAM_INIT_DISPLACEMENT_CONST = 0.2;
+var PARAM_INIT_DISPLACEMENT_CONST = 0.5;
 var PARAM_CALC_DISPLACEMENT_CONST = function(value){
 	return value * 0.5;
 }
@@ -49,7 +49,7 @@ var PARAM_CALC_WIND_X = function(value){
 }
 
 var PARAM_NAME_WIND_Y = 'windY';
-var PARAM_INIT_WIND_Y = 0.4;
+var PARAM_INIT_WIND_Y = 0.2;
 var PARAM_CALC_WIND_Y = function(value){
 	return value * 10;
 }
@@ -61,18 +61,18 @@ var PARAM_CALC_SIZE_CALC = function(value){
 }
 
 var PARAM_NAME_SCALE_HORIZONTAL = 'scaleHorizontal';
-var PARAM_INIT_SCALE_HORIZONTAL = 0.5;
+var PARAM_INIT_SCALE_HORIZONTAL = 0.3;
 var PARAM_CALC_SCALE_HORIZONTAL = function(value){
-	return (value + 1) * 2;
+	return value * 20 + 1;
 }
 
 var PARAM_NAME_SCALE_VERTICAL = 'scaleVertical';
-var PARAM_INIT_SCALE_VERTICAL = 0.4;
+var PARAM_INIT_SCALE_VERTICAL = 0.2;
 var PARAM_CALC_SCALE_VERTICAL = function(value){
-	return (value + 1) * 2;
+	return value * 20 + 1;
 }
 
-var PARAM_NAME_NORMAL_RATIO = 'normalRatio';
+var PARAM_NAME_NORMAL_RATIO = 'normalPreciseRatio';
 var PARAM_INIT_NORMAL_RATIO = 0.5;
 var PARAM_CALC_NORMAL_RATIO = function(value){
 	return value;
@@ -108,15 +108,33 @@ var PARAM_CALC_FRESNEL_BIAS_LIN = function(value){
 	return Math.pow(8, value);
 }
 
-var PARAM_NAME_SEPCULAR_BIAS_EXP = 'specularBiasExp';
-var PARAM_INIT_SEPCULAR_BIAS_EXP = 0.3;
-var PARAM_CALC_SEPCULAR_BIAS_EXP = function(value){
+var PARAM_NAME_SPECULAR_BLINN_RATIO = 'specularBlinnRatio';
+var PARAM_INIT_SPECULAR_BLINN_RATIO = 0.5;
+var PARAM_CALC_SPECULAR_BLINN_RATIO = function(value){
+	return value;
+}
+
+var PARAM_NAME_BLINN_PHONG_BIAS_EXP = 'blinnPhongBiasExp';
+var PARAM_INIT_BLINN_PHONG_BIAS_EXP = 0.3;
+var PARAM_CALC_BLINN_PHONG_BIAS_EXP = function(value){
 	return Math.pow(10000, (value * 0.75 + 0.25));
 }
 
-var PARAM_NAME_SEPCULAR_BIAS_LIN = 'specularBiasLin';
-var PARAM_INIT_SEPCULAR_BIAS_LIN = 0.5;
-var PARAM_CALC_SEPCULAR_BIAS_LIN = function(value){
+var PARAM_NAME_BLINN_PHONG_BIAS_LIN = 'blinnPhongBiasLin';
+var PARAM_INIT_BLINN_PHONG_BIAS_LIN = 0.5;
+var PARAM_CALC_BLINN_PHONG_BIAS_LIN = function(value){
+	return value * 5;
+}
+
+var PARAM_NAME_PHONG_BIAS_EXP = 'phongBiasExp';
+var PARAM_INIT_PHONG_BIAS_EXP = 0.3;
+var PARAM_CALC_PHONG_BIAS_EXP = function(value){
+	return Math.pow(10000, (value * 0.75 + 0.25));
+}
+
+var PARAM_NAME_PHONG_BIAS_LIN = 'phongBiasLin';
+var PARAM_INIT_PHONG_BIAS_LIN = 0.5;
+var PARAM_CALC_PHONG_BIAS_LIN = function(value){
 	return value * 5;
 }
 
@@ -156,7 +174,7 @@ var PARAM_CALC_INV_SUN_ELEVATION = function(value){
 
 var PARAM_NAME_SUN_DISTANCE = 'sunDistance';
 var PARAM_MIN_SUN_DISTANCE = 10;
-var PARAM_MAX_SUN_DISTANCE = 100;
+var PARAM_MAX_SUN_DISTANCE = 1000;
 var PARAM_INIT_SUN_DISTANCE = 0.5;
 var PARAM_CALC_SUN_DISTANCE = function(value){
 	return Math.pow(PARAM_MAX_SUN_DISTANCE - PARAM_MIN_SUN_DISTANCE, value) + PARAM_MIN_SUN_DISTANCE;

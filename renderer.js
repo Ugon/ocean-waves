@@ -203,13 +203,16 @@ var Renderer = function(canvas, params) {
     gl.uniform3fv(programOcean.uniformLocations['u_oceanColor'], PARAM_CALC_COLOR_OCEAN(params[PARAM_NAME_COLOR_OCEAN]));
     gl.uniform3fv(programOcean.uniformLocations['u_sunColor'],   PARAM_CALC_COLOR_SUN(  params[PARAM_NAME_COLOR_SUN]));
 
-    gl.uniform1f(programOcean.uniformLocations['u_normalRatio'],     PARAM_CALC_NORMAL_RATIO(     params[PARAM_NAME_NORMAL_RATIO]));
-    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'],  PARAM_CALC_FRESNEL_BIAS_EXP( params[PARAM_NAME_FRESNEL_BIAS_EXP]));
-    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'],  PARAM_CALC_FRESNEL_BIAS_LIN( params[PARAM_NAME_FRESNEL_BIAS_LIN]));
-    gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(params[PARAM_NAME_SEPCULAR_BIAS_EXP]));
-    gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(params[PARAM_NAME_SEPCULAR_BIAS_LIN]));
-    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'],  PARAM_CALC_DIFFUSE_BIAS_EXP( params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
-    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'],  PARAM_CALC_DIFFUSE_BIAS_LIN( params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_normalRatio'],        PARAM_CALC_NORMAL_RATIO(        params[PARAM_NAME_NORMAL_RATIO]));
+    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasExp'],     PARAM_CALC_FRESNEL_BIAS_EXP(    params[PARAM_NAME_FRESNEL_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'],     PARAM_CALC_FRESNEL_BIAS_LIN(    params[PARAM_NAME_FRESNEL_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_specularBlinnRatio'], PARAM_CALC_SPECULAR_BLINN_RATIO(params[PARAM_NAME_SPECULAR_BLINN_RATIO]));
+    gl.uniform1f(programOcean.uniformLocations['u_blinnPhongBiasExp'],  PARAM_CALC_BLINN_PHONG_BIAS_EXP(params[PARAM_NAME_BLINN_PHONG_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_blinnPhongBiasLin'],  PARAM_CALC_BLINN_PHONG_BIAS_LIN(params[PARAM_NAME_BLINN_PHONG_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_phongBiasExp'],       PARAM_CALC_PHONG_BIAS_EXP(      params[PARAM_NAME_PHONG_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_phongBiasLin'],       PARAM_CALC_PHONG_BIAS_LIN(      params[PARAM_NAME_PHONG_BIAS_LIN]));
+    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasExp'],     PARAM_CALC_DIFFUSE_BIAS_EXP(    params[PARAM_NAME_DIFFUSE_BIAS_EXP]));
+    gl.uniform1f(programOcean.uniformLocations['u_diffuseBiasLin'],     PARAM_CALC_DIFFUSE_BIAS_LIN(    params[PARAM_NAME_DIFFUSE_BIAS_LIN]));
 
     var setOceanCameraPosition = function(){
         var xyz = polar2cartesianVec(
@@ -477,15 +480,30 @@ var Renderer = function(canvas, params) {
                     gl.useProgram(programOcean.program);
                     gl.uniform1f(programOcean.uniformLocations['u_fresnelBiasLin'], PARAM_CALC_FRESNEL_BIAS_LIN(value));
                     break;
-
-                case PARAM_NAME_SEPCULAR_BIAS_EXP:
+                    
+                case PARAM_NAME_SPECULAR_BLINN_RATIO:
                     gl.useProgram(programOcean.program);
-                    gl.uniform1f(programOcean.uniformLocations['u_specularBiasExp'], PARAM_CALC_SEPCULAR_BIAS_EXP(value));
+                    gl.uniform1f(programOcean.uniformLocations['u_specularBlinnRatio'], PARAM_CALC_SPECULAR_BLINN_RATIO(value));
                     break;
 
-                case PARAM_NAME_SEPCULAR_BIAS_LIN:
+                case PARAM_NAME_BLINN_PHONG_BIAS_EXP:
                     gl.useProgram(programOcean.program);
-                    gl.uniform1f(programOcean.uniformLocations['u_specularBiasLin'], PARAM_CALC_SEPCULAR_BIAS_LIN(value));
+                    gl.uniform1f(programOcean.uniformLocations['u_blinnPhongBiasExp'], PARAM_CALC_BLINN_PHONG_BIAS_EXP(value));
+                    break;
+
+                case PARAM_NAME_BLINN_PHONG_BIAS_LIN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_blinnPhongBiasLin'], PARAM_CALC_BLINN_PHONG_BIAS_LIN(value));
+                    break;
+
+                case PARAM_NAME_PHONG_BIAS_EXP:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_phongBiasExp'], PARAM_CALC_PHONG_BIAS_EXP(value));
+                    break;
+
+                case PARAM_NAME_PHONG_BIAS_LIN:
+                    gl.useProgram(programOcean.program);
+                    gl.uniform1f(programOcean.uniformLocations['u_phongBiasLin'], PARAM_CALC_PHONG_BIAS_LIN(value));
                     break;
 
                 case PARAM_NAME_DIFFUSE_BIAS_EXP:
