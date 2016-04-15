@@ -198,6 +198,9 @@ var PARAM_CALC_INV_CAMERA_DISTANCE = function(value){
 	return clamp(value, 0, 1);
 }
 
+var PARAM_NAME_SHOW_FPS = 'showFPS';
+var PARAM_INIT_SHOW_FPS = false;
+
 var PARAM_NAME_MOUSE_SPEED = 'mouseSpeed';
 var PARAM_INIT_MOUSE_SPEED = 0.5;
 var PARAM_CALC_MOUSE_SPEED = function(value){
@@ -209,6 +212,8 @@ var PARAM_INIT_WHEEL_SPEED = 0.1;
 var PARAM_CALC_WHEEL_SPEED = function(value){
 	return value / 250;
 }
+
+
 
 
 var INDEX_BUFFER_FULLSCREEN = 0;

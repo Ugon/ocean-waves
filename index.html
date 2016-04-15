@@ -7,6 +7,7 @@
 
     <script type="text/javascript" src="lib/dat.gui.js"></script>
     <script type="text/javascript" src="lib/gl-matrix.js"></script>
+    <script type="text/javascript" src="lib/stats.min.js"></script>
     
     <script type="text/javascript" src="parameters.js"></script>
     
@@ -18,26 +19,28 @@
 </head>
 <body>
     <div id="gui"></div>
+    <div id="stats"></div>
     <div id="overlay"></div>
     <canvas id="canvas"></canvas>
 </body>
-
-
 
 <script>
     var canvas     = document.getElementById('canvas');
     var overlayDiv = document.getElementById('overlay');
     var guiDiv     = document.getElementById('gui');
+    var statsDiv   = document.getElementById('stats');
 
     canvas.width  = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    var gui             = new Gui(guiDiv);
+    var stats           = new Stats();
+    var gui             = new Gui(guiDiv, statsDiv);
     var params          = gui.params;
     var camera          = new Camera(params);
     var renderer        = new Renderer(canvas, params);
     var projectonMatrix = mat4.create();
 
+    statsDiv.appendChild( stats.domElement );;
 
     /*****************************************************************/
     /*********************ADD EVENT LISTENERS*************************/
@@ -103,6 +106,8 @@
     var nextFrame = function(){
         time += PARAM_CALC_TIME_STEP(params[PARAM_NAME_TIME_STEP]);
         renderer.renderFrame(time, projectonMatrix, params.getChanges());
+
+        stats.update();
         requestAnimationFrame(nextFrame);
     }
     nextFrame();

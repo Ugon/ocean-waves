@@ -1,4 +1,4 @@
-var Gui = function(guiDiv){  
+var Gui = function(guiDiv, statsDiv){  
     this.params = {};
     var params = this.params;
 
@@ -36,12 +36,11 @@ var Gui = function(guiDiv){
     params[PARAM_NAME_CAMERA_ELEVATION]    = PARAM_INIT_CAMERA_ELEVATION;
     params[PARAM_NAME_CAMERA_DISTANCE]     = PARAM_INIT_CAMERA_DISTANCE;
 
+    params[PARAM_NAME_SHOW_FPS]            = PARAM_INIT_SHOW_FPS;
     params[PARAM_NAME_MOUSE_SPEED]         = PARAM_INIT_MOUSE_SPEED;
     params[PARAM_NAME_WHEEL_SPEED]         = PARAM_INIT_WHEEL_SPEED;
     
-
 	params['changed'] = {};
-
 
     this.params.getChanges = function(){
     	var result = {};
@@ -79,7 +78,6 @@ var Gui = function(guiDiv){
     conditionsParams.add(params, PARAM_NAME_SCALE_HORIZONTAL , 0, 1);
     conditionsParams.add(params, PARAM_NAME_SCALE_VERTICAL   , 0, 1);
 
-
     var oceanColorCtrl = colorParams.addColor(params, PARAM_NAME_COLOR_OCEAN , 0, 1);
     var skyColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SKY   , 0, 1);
     var sunColorCtrl   = colorParams.addColor(params, PARAM_NAME_COLOR_SUN   , 0, 1);
@@ -92,27 +90,9 @@ var Gui = function(guiDiv){
     colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_EXP  , 0, 1);
     colorParams.add(params, PARAM_NAME_DIFFUSE_BIAS_LIN  , 0, 1);
     
-    controlParams.add(params, PARAM_NAME_MOUSE_SPEED , 0, 1);
-    controlParams.add(params, PARAM_NAME_WHEEL_SPEED , 0, 1);  
-
-    //set changed
-    var folders = gui.__folders;
-    for(var folderInd in folders){
-        var controllers = folders[folderInd].__controllers
-        for(var controllerInd in controllers){
-            var controller = controllers[controllerInd];
-            var property = controller.property;
-
-            params.changed[property] = false;
-                
-            var onChangeFun = (function(){
-                var prop = property;
-                return function() { params.changed[prop] = true; };
-            })();
-
-            controller.onChange(onChangeFun);
-        }
-    }
+    var fpsCtrl = controlParams.add(params, PARAM_NAME_SHOW_FPS    , 0, 1).listen();
+                  controlParams.add(params, PARAM_NAME_MOUSE_SPEED , 0, 1);
+                  controlParams.add(params, PARAM_NAME_WHEEL_SPEED , 0, 1);  
 
     positionParams.add(params, 
         PARAM_NAME_CAMERA_AZIMUTH, 
@@ -133,14 +113,33 @@ var Gui = function(guiDiv){
         PARAM_MIN_SUN_ELEVATION,
         PARAM_MAX_SUN_ELEVATION).listen();
     positionParams.add(params, PARAM_NAME_SUN_DISTANCE, 0, 1).listen();
-    
-    
+
+    //set changed
+    var folders = gui.__folders;
+    for(var folderInd in folders){
+        var controllers = folders[folderInd].__controllers
+        for(var controllerInd in controllers){
+            var controller = controllers[controllerInd];
+            var property = controller.property;
+
+            params.changed[property] = false;
+                
+            var onChangeFun = (function(){
+                var prop = property;
+                return function() { params.changed[prop] = true; };
+            })();
+
+            controller.onChange(onChangeFun);
+        }
+    }
+
+    //handle position changes
     for(var ctrlInd in positionParams.__controllers){
         var ctrl = positionParams.__controllers[ctrlInd];
+
         var onChangeFun = (function(){
             var property = ctrl.property;
             return function(value){
-                console.log('dupa');
                 params[property] = value;
                 params.changed[property] = true;
             }
@@ -190,14 +189,18 @@ var Gui = function(guiDiv){
     }
 
     oceanColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_OCEAN));
-    skyColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_SKY));
-    sunColorCtrl.onChange(colorOnChangeFun(PARAM_NAME_COLOR_SUN));
+    skyColorCtrl.onChange(  colorOnChangeFun(PARAM_NAME_COLOR_SKY));
+    sunColorCtrl.onChange(  colorOnChangeFun(PARAM_NAME_COLOR_SUN));
 
-    // spectrumParams.open();
-    // conditionsParams.open();
-    // colorParams.open();
-    positionParams.open();
-    // controlParams.open();
+    //handle FPS change
+    var fpsOnChangeFun = function(value){
+        if (value) statsDiv.style.visibility = 'visible';
+        else       statsDiv.style.visibility = 'hidden';
+    }
+
+    fpsCtrl.onChange(fpsOnChangeFun);
+    fpsOnChangeFun(params[PARAM_NAME_SHOW_FPS]);
+
     gui.open();
 
     guiDiv.appendChild(gui.domElement);
