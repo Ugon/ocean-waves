@@ -1,2 +1,3 @@
 # Ocean waves
-Author: Wojciech Pachuta
+![alt tag](screenshots/waves3.png)
+![alt tag](screenshots/waves2.png)
